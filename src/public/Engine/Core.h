@@ -19,6 +19,8 @@ private:
 	ComPtr<IDXGISwapChain1> sc;
 
 	ComPtr<ID3D12Device> dev;
+	ComPtr<ID3D12CommandAllocator> alloc;
+	ComPtr<ID3D12CommandQueue> queue;
 
 	void GetMostCapableAdapter(ComPtr<IDXGIFactory2>& factory, ComPtr<IDXGIAdapter>& adapter);
 	D3D_FEATURE_LEVEL GetMaxFeatureLevel(ComPtr<IDXGIAdapter>& adapter);
