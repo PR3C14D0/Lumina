@@ -1,4 +1,6 @@
 #pragma once
+#include <iostream>
+#include <vector>
 #include <Windows.h>
 #include <wrl.h>
 #include <d3d12.h>
@@ -15,7 +17,11 @@ private:
 	ComPtr<IDXGIFactory2> factory;
 	ComPtr<IDXGIAdapter> adapter;
 	ComPtr<IDXGISwapChain1> sc;
+
 	ComPtr<ID3D12Device> dev;
+
+	void GetMostCapableAdapter(ComPtr<IDXGIFactory2>& factory, ComPtr<IDXGIAdapter>& adapter);
+	D3D_FEATURE_LEVEL GetMaxFeatureLevel(ComPtr<IDXGIAdapter>& adapter);
 public:
 	void SetHWND(HWND& hwnd);
 
