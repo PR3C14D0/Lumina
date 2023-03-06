@@ -1,6 +1,8 @@
 #include <Windows.h>
+#include "Engine/Core.h"
 
 bool g_quit = false;
+Core* g_core = Core::GetInstance();
 
 LRESULT CALLBACK WndProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
 
@@ -32,6 +34,9 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 	}
 
 	ShowWindow(hwnd, nShowCmd);
+
+	g_core->SetHWND(hwnd);
+	g_core->Init();
 
 	MSG msg = { };
 
