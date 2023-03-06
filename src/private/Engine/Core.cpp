@@ -33,6 +33,8 @@ void Core::Init() {
 	this->GetMostCapableAdapter(this->factory, this->adapter);
 
 	D3D_FEATURE_LEVEL featureLevel = this->GetMaxFeatureLevel(this->adapter);
+
+	ThrowIfFailed(D3D12CreateDevice(this->adapter.Get(), featureLevel, IID_PPV_ARGS(this->dev.GetAddressOf())));
 }
 
 /*
