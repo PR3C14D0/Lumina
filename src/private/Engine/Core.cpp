@@ -4,6 +4,18 @@ Core* Core::instance;
 
 Core::Core() {
 	this->hwnd = NULL;
+	this->nNumBackBuffers = 2;
+	
+	/*
+		FBOs:
+			- Albedo
+			- Normal
+			- Position
+			- ScreenQuad
+	*/
+	this->nNumFBO = 4;
+
+	this->nNumRenderTargets = this->nNumFBO + this->nNumBackBuffers;
 }
 
 void Core::SetHWND(HWND& hwnd) {
@@ -11,7 +23,7 @@ void Core::SetHWND(HWND& hwnd) {
 	return;
 }
 
-/*
+/*!
 	This method is our singleton initiazation method.
 		Note: This method must be called once.
 */
@@ -79,9 +91,50 @@ void Core::Init() {
 
 		sc.As(&this->sc);
 	}
+
+	this->InitDescriptorHeaps();
 }
 
-/*
+/*!
+	This method initializes our descriptor heaps
+*/
+void Core::InitDescriptorHeaps() {
+	/* Render target view descriptor heap */
+	D3D12_DESCRIPTOR_HEAP_DESC rtvHeapDesc = { };
+	rtvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
+	rtvHeapDesc.NumDescriptors = this->nNumBackBuffers;
+	rtvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_RTV;
+
+	ThrowIfFailed(this->dev->CreateDescriptorHeap(&rtvHeapDesc, IID_PPV_ARGS(this->rtvHeap.GetAddressOf())));
+
+	/* Constant buffer view & shader resource view descriptor heap */
+	D3D12_DESCRIPTOR_HEAP_DESC cbv_srvHeapDesc = { };
+	cbv_srvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
+	cbv_srvHeapDesc.NumDescriptors = D3D12_MAX_SHADER_VISIBLE_DESCRIPTOR_HEAP_SIZE_TIER_1;
+	cbv_srvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
+	
+	ThrowIfFailed(this->dev->CreateDescriptorHeap(&cbv_srvHeapDesc, IID_PPV_ARGS(this->cbv_srvHeap.GetAddressOf())));
+
+	/* Depth Stencil view descriptor heap */
+	D3D12_DESCRIPTOR_HEAP_DESC dsvHeapDesc = { };
+	dsvHeapDesc.NumDescriptors = 1;
+	dsvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_DSV;
+	dsvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
+
+	ThrowIfFailed(this->dev->CreateDescriptorHeap(&dsvHeapDesc, IID_PPV_ARGS(this->dsvHeap.GetAddressOf())));
+
+	/* Sampler descriptor heap */
+	D3D12_DESCRIPTOR_HEAP_DESC samplerHeapDesc = { };
+	samplerHeapDesc.NumDescriptors = D3D12_MAX_SHADER_VISIBLE_SAMPLER_HEAP_SIZE;
+	samplerHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
+	samplerHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER;
+
+	ThrowIfFailed(this->dev->CreateDescriptorHeap(&samplerHeapDesc, IID_PPV_ARGS(this->samplerHeap.GetAddressOf())));
+
+	return;
+}
+
+/*!
 	This method will get our most capable adapter.
 	The adapter must be capable with the minimum feature level specified.
 	If not, will show an error MessageBox
@@ -113,7 +166,7 @@ void Core::GetMostCapableAdapter(ComPtr<IDXGIFactory2>& factory, ComPtr<IDXGIAda
 	return;
 }
 
-/*
+/*!
 	This method will get the max feature level for the specified adapter.
 		Note: The adapter must be capable with the minimum feature level for working.
 */

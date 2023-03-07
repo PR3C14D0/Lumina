@@ -24,11 +24,24 @@ private:
 	
 	UINT nNumBackBuffers;
 	UINT nNumRenderTargets;
+	UINT nNumFBO;
 
 	int width, height;
 
 	void GetMostCapableAdapter(ComPtr<IDXGIFactory2>& factory, ComPtr<IDXGIAdapter>& adapter);
 	D3D_FEATURE_LEVEL GetMaxFeatureLevel(ComPtr<IDXGIAdapter>& adapter);
+
+	ComPtr<ID3D12DescriptorHeap> rtvHeap;
+	ComPtr<ID3D12DescriptorHeap> samplerHeap;
+	ComPtr<ID3D12DescriptorHeap> cbv_srvHeap;
+	ComPtr<ID3D12DescriptorHeap> dsvHeap;
+
+	UINT nRTVHeapIncrementSize;
+	UINT nSamplerHeapIncrementSize;
+	UINT nCBV_SRVHeapIncrementSize;
+	UINT nDSVHeapIncrementSize;
+
+	void InitDescriptorHeaps();
 public:
 	void SetHWND(HWND& hwnd);
 
