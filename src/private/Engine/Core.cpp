@@ -11,11 +11,21 @@ void Core::SetHWND(HWND& hwnd) {
 	return;
 }
 
+/*
+	This method is our singleton initiazation method.
+		Note: This method must be called once.
+*/
 void Core::Init() {
 	if (!this->hwnd) {
 		MessageBox(NULL, "No window found", "Error", MB_OK);
 		return;
 	}
+
+	RECT rect;
+	GetWindowRect(this->hwnd, &rect);
+
+	this->width = rect.right - rect.left;
+	this->height = rect.bottom - rect.top;
 
 	UINT nFactoryCreateFlags = 0;
 
@@ -29,6 +39,7 @@ void Core::Init() {
 	}
 #endif // NDEBUG
 
+	/* Creation of our device and factory */
 	ThrowIfFailed(CreateDXGIFactory2(nFactoryCreateFlags, IID_PPV_ARGS(this->factory.GetAddressOf())));
 	this->GetMostCapableAdapter(this->factory, this->adapter);
 
@@ -37,12 +48,37 @@ void Core::Init() {
 	ThrowIfFailed(D3D12CreateDevice(this->adapter.Get(), featureLevel, IID_PPV_ARGS(this->dev.GetAddressOf())));
 	ThrowIfFailed(this->dev->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(this->alloc.GetAddressOf())));
 
+	/* Creation of our command queue */
 	D3D12_COMMAND_QUEUE_DESC queueDesc = { };
 	queueDesc.Flags = D3D12_COMMAND_QUEUE_FLAG_NONE;
 	queueDesc.Priority = D3D12_COMMAND_QUEUE_PRIORITY_NORMAL;
 	queueDesc.Type = D3D12_COMMAND_LIST_TYPE_DIRECT;
 
 	ThrowIfFailed(this->dev->CreateCommandQueue(&queueDesc, IID_PPV_ARGS(this->queue.GetAddressOf())));
+
+	/* Creation of our swap chain */
+	{
+		DXGI_SWAP_CHAIN_DESC1 scDesc = { };
+		scDesc.BufferCount = this->nNumBackBuffers;
+		scDesc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
+		scDesc.Format = DXGI_FORMAT_B8G8R8A8_UNORM;
+		scDesc.SampleDesc.Count = 1;
+		scDesc.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
+		scDesc.Width = this->width;
+		scDesc.Height = this->height;
+
+		ComPtr<IDXGISwapChain1> sc;
+		ThrowIfFailed(this->factory->CreateSwapChainForHwnd(
+			this->queue.Get(),
+			this->hwnd,
+			&scDesc,
+			nullptr,
+			nullptr,
+			sc.GetAddressOf()
+		));
+
+		sc.As(&this->sc);
+	}
 }
 
 /*
