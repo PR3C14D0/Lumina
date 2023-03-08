@@ -21,6 +21,7 @@ private:
 	ComPtr<ID3D12Device> dev;
 	ComPtr<ID3D12CommandAllocator> alloc;
 	ComPtr<ID3D12CommandQueue> queue;
+	ComPtr<ID3D12GraphicsCommandList> list;
 	
 	UINT nNumBackBuffers;
 	UINT nNumRenderTargets;
@@ -36,6 +37,11 @@ private:
 	ComPtr<ID3D12DescriptorHeap> cbv_srvHeap;
 	ComPtr<ID3D12DescriptorHeap> dsvHeap;
 
+	UINT rtvActualIndex;
+	UINT samplerActualIndex;
+	UINT cbv_srvActualIndex;
+	UINT dsvActualIndex;
+
 	UINT nRTVHeapIncrementSize;
 	UINT nSamplerHeapIncrementSize;
 	UINT nCBV_SRVHeapIncrementSize;
@@ -44,6 +50,11 @@ private:
 	void InitDescriptorHeaps();
 public:
 	void SetHWND(HWND& hwnd);
+
+	UINT GetNewHeapIndex(D3D12_DESCRIPTOR_HEAP_TYPE type);
+
+	D3D12_CPU_DESCRIPTOR_HANDLE GetDescriptorCPUHandle(D3D12_DESCRIPTOR_HEAP_TYPE type);
+	D3D12_GPU_DESCRIPTOR_HANDLE GetDescriptorGPUHandle(D3D12_DESCRIPTOR_HEAP_TYPE type);
 
 	void Init();
 

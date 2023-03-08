@@ -5,8 +5,11 @@ Core* Core::instance;
 Core::Core() {
 	this->hwnd = NULL;
 	this->nNumBackBuffers = 2;
+
+	this->width = 0;
+	this->height = 0;
 	
-	/*
+	/*!
 		FBOs:
 			- Albedo
 			- Normal
@@ -16,6 +19,17 @@ Core::Core() {
 	this->nNumFBO = 4;
 
 	this->nNumRenderTargets = this->nNumFBO + this->nNumBackBuffers;
+
+	this->nRTVHeapIncrementSize = 0;
+	this->nDSVHeapIncrementSize = 0;
+	this->nSamplerHeapIncrementSize = 0;
+	this->nCBV_SRVHeapIncrementSize = 0;
+
+	this->dsvActualIndex = 0;
+	this->rtvActualIndex = 0;
+	this->samplerActualIndex = 0;
+	this->cbv_srvActualIndex = 0;
+
 }
 
 void Core::SetHWND(HWND& hwnd) {
@@ -93,6 +107,78 @@ void Core::Init() {
 	}
 
 	this->InitDescriptorHeaps();
+
+}
+
+/*!
+	This method gets a new descriptor heap index for specified descriptor heap type.
+*/
+UINT Core::GetNewHeapIndex(D3D12_DESCRIPTOR_HEAP_TYPE type) {
+	UINT returnedIndex = 0;
+
+	if (type == D3D12_DESCRIPTOR_HEAP_TYPE_RTV) {
+		returnedIndex = this->rtvActualIndex;
+		this->rtvActualIndex++;
+	}
+
+	if (type == D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV) {
+		returnedIndex = this->cbv_srvActualIndex;
+		this->cbv_srvActualIndex++;
+	}
+
+	if (type == D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER) {
+		returnedIndex = this->samplerActualIndex;
+		this->samplerActualIndex++;
+	}
+
+	if (type == D3D12_DESCRIPTOR_HEAP_TYPE_DSV) {
+		returnedIndex = this->dsvActualIndex;
+		this->dsvActualIndex++;
+	}
+
+	return returnedIndex;
+}
+
+/*!
+	This method will get the CPU handle of the specified descriptor heap type.
+*/
+D3D12_CPU_DESCRIPTOR_HANDLE Core::GetDescriptorCPUHandle(D3D12_DESCRIPTOR_HEAP_TYPE type) {
+	D3D12_CPU_DESCRIPTOR_HANDLE handle = { };
+
+	if (type == D3D12_DESCRIPTOR_HEAP_TYPE_RTV)
+		handle = this->rtvHeap->GetCPUDescriptorHandleForHeapStart();
+
+	if (type == D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER)
+		handle = this->samplerHeap->GetCPUDescriptorHandleForHeapStart();
+
+	if (type == D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV)
+		handle = this->cbv_srvHeap->GetCPUDescriptorHandleForHeapStart();
+
+	if (type == D3D12_DESCRIPTOR_HEAP_TYPE_DSV)
+		handle = this->dsvHeap->GetCPUDescriptorHandleForHeapStart();
+
+	return handle;
+}
+
+/*!
+	This method will get the GPU handle of the specified descriptor heap type.
+*/
+D3D12_GPU_DESCRIPTOR_HANDLE Core::GetDescriptorGPUHandle(D3D12_DESCRIPTOR_HEAP_TYPE type) {
+	D3D12_GPU_DESCRIPTOR_HANDLE handle = { };
+
+	if (type == D3D12_DESCRIPTOR_HEAP_TYPE_RTV)
+		handle = this->rtvHeap->GetGPUDescriptorHandleForHeapStart();
+
+	if (type == D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER)
+		handle = this->samplerHeap->GetGPUDescriptorHandleForHeapStart();
+
+	if (type == D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV)
+		handle = this->cbv_srvHeap->GetGPUDescriptorHandleForHeapStart();
+
+	if (type == D3D12_DESCRIPTOR_HEAP_TYPE_DSV)
+		handle = this->dsvHeap->GetGPUDescriptorHandleForHeapStart();
+
+	return handle;
 }
 
 /*!
@@ -130,6 +216,12 @@ void Core::InitDescriptorHeaps() {
 	samplerHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER;
 
 	ThrowIfFailed(this->dev->CreateDescriptorHeap(&samplerHeapDesc, IID_PPV_ARGS(this->samplerHeap.GetAddressOf())));
+
+	/* Set increment sizes */
+	this->nRTVHeapIncrementSize = this->dev->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
+	this->nCBV_SRVHeapIncrementSize = this->dev->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+	this->nDSVHeapIncrementSize = this->dev->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_DSV);
+	this->nSamplerHeapIncrementSize = this->dev->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER);
 
 	return;
 }
