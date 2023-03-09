@@ -3,11 +3,19 @@
 #include <vector>
 #include <Windows.h>
 #include <wrl.h>
-#include <d3d12.h>
+#include <directx/d3d12.h>
+#include <directx/d3dx12.h>
 #include <dxgi1_4.h>
 #include "Engine/Util.h"
+#include <map>
 
 using namespace Microsoft::WRL;
+
+enum GBUFFER_TYPE {
+	ALBEDO = 0,
+	NORMAL = 1,
+	POSITION = 2
+};
 
 class Core {
 private:
@@ -37,6 +45,9 @@ private:
 	ComPtr<ID3D12DescriptorHeap> cbv_srvHeap;
 	ComPtr<ID3D12DescriptorHeap> dsvHeap;
 
+	std::vector<ComPtr<ID3D12Resource>> backBuffers;
+	std::map<GBUFFER_TYPE, ComPtr<ID3D12Resource>> FBOs;
+
 	UINT rtvActualIndex;
 	UINT samplerActualIndex;
 	UINT cbv_srvActualIndex;
@@ -47,6 +58,8 @@ private:
 	UINT nCBV_SRVHeapIncrementSize;
 	UINT nDSVHeapIncrementSize;
 
+	UINT nMultisampleCount;
+
 	void InitDescriptorHeaps();
 public:
 	void SetHWND(HWND& hwnd);
@@ -55,6 +68,7 @@ public:
 
 	D3D12_CPU_DESCRIPTOR_HANDLE GetDescriptorCPUHandle(D3D12_DESCRIPTOR_HEAP_TYPE type);
 	D3D12_GPU_DESCRIPTOR_HANDLE GetDescriptorGPUHandle(D3D12_DESCRIPTOR_HEAP_TYPE type);
+	UINT GetDescriptorIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE type);
 
 	void Init();
 

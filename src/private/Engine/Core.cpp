@@ -11,9 +11,11 @@ Core::Core() {
 	
 	/*!
 		FBOs:
-			- Albedo
-			- Normal
-			- Position
+			- GBuffers:
+				1 - Albedo
+				2 - Normal
+				3 - Position
+			
 			- ScreenQuad
 	*/
 	this->nNumFBO = 4;
@@ -26,10 +28,17 @@ Core::Core() {
 	this->nCBV_SRVHeapIncrementSize = 0;
 
 	this->dsvActualIndex = 0;
-	this->rtvActualIndex = 0;
+
+	/* 
+		We use the number of back buffers for using it as an offset. 
+		We do this because if not, we will use our backbuffer indexes later and we don't want that. 
+	*/
+	this->rtvActualIndex = this->nNumBackBuffers;
+
 	this->samplerActualIndex = 0;
 	this->cbv_srvActualIndex = 0;
 
+	this->nMultisampleCount = 8;
 }
 
 void Core::SetHWND(HWND& hwnd) {
@@ -108,6 +117,62 @@ void Core::Init() {
 
 	this->InitDescriptorHeaps();
 
+	/* Creation of our graphics command list*/
+	ThrowIfFailed(this->dev->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, this->alloc.Get(), nullptr, IID_PPV_ARGS(this->list.GetAddressOf())));
+
+	UINT nRTVIncrementSize = this->GetDescriptorIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
+	D3D12_CPU_DESCRIPTOR_HANDLE rtvCPUHandle = this->GetDescriptorCPUHandle(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
+	CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle(rtvCPUHandle, nRTVIncrementSize);
+	for (int i = 0; i < this->nNumBackBuffers; i++) {
+		ComPtr<ID3D12Resource> backBuffer;
+		ThrowIfFailed(this->sc->GetBuffer(i, IID_PPV_ARGS(backBuffer.GetAddressOf())));
+
+		this->backBuffers.push_back(backBuffer);
+
+		this->dev->CreateRenderTargetView(this->backBuffers[i].Get(), nullptr, rtvHandle);
+		rtvHandle.Offset(1, nRTVIncrementSize);
+	}
+
+	/* Creation of our FBOs */
+	D3D12_RENDER_TARGET_VIEW_DESC fboDesc = { };
+	fboDesc.Format = DXGI_FORMAT_B8G8R8A8_UNORM;
+	fboDesc.Texture2D.MipSlice = 1;
+	fboDesc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2DMS;
+	
+	D3D12_RESOURCE_DESC fboResDesc = { };
+	fboResDesc.SampleDesc.Count = this->nMultisampleCount;
+	fboResDesc.MipLevels = 1;
+	fboResDesc.DepthOrArraySize = 1;
+	fboResDesc.Width = this->width;
+	fboResDesc.Height = this->height;
+	fboResDesc.Format = DXGI_FORMAT_B8G8R8A8_UNORM;
+	fboResDesc.Flags = D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET;
+	fboResDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
+
+	D3D12_HEAP_PROPERTIES fboProps = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
+
+	UINT nNumGBuffers = this->nNumFBO - 1; // We do -1 because we'll initialize our ScreenQuad on another class.
+
+
+	for (int i = 0; i < nNumGBuffers; i++ ) {
+		ComPtr<ID3D12Resource> fbo;
+		ThrowIfFailed(this->dev->CreateCommittedResource(
+			&fboProps,
+			D3D12_HEAP_FLAG_NONE,
+			&fboResDesc,
+			D3D12_RESOURCE_STATE_RENDER_TARGET,
+			nullptr,
+			IID_PPV_ARGS(fbo.GetAddressOf())
+		));
+		GBUFFER_TYPE type = static_cast<GBUFFER_TYPE>(i);
+
+		this->FBOs[type] = fbo;
+
+		UINT index = this->GetNewHeapIndex(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
+		CD3DX12_CPU_DESCRIPTOR_HANDLE GBuffHandle(rtvCPUHandle, index, nRTVHeapIncrementSize);
+
+		this->dev->CreateRenderTargetView(this->FBOs[type].Get(), &fboDesc, GBuffHandle);
+	}
 }
 
 /*!
@@ -161,6 +226,27 @@ D3D12_CPU_DESCRIPTOR_HANDLE Core::GetDescriptorCPUHandle(D3D12_DESCRIPTOR_HEAP_T
 }
 
 /*!
+	This method will get the increment size for the specified descriptor heap type.
+*/
+UINT Core::GetDescriptorIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE type) {
+	UINT size = 0;
+
+	if (type == D3D12_DESCRIPTOR_HEAP_TYPE_RTV)
+		size = this->nRTVHeapIncrementSize;
+
+	if (type == D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER)
+		size = this->nSamplerHeapIncrementSize;
+
+	if (type == D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV)
+		size = this->nCBV_SRVHeapIncrementSize;
+
+	if (type == D3D12_DESCRIPTOR_HEAP_TYPE_DSV)
+		size = this->nDSVHeapIncrementSize;
+
+	return size;
+}
+
+/*!
 	This method will get the GPU handle of the specified descriptor heap type.
 */
 D3D12_GPU_DESCRIPTOR_HANDLE Core::GetDescriptorGPUHandle(D3D12_DESCRIPTOR_HEAP_TYPE type) {
@@ -188,7 +274,7 @@ void Core::InitDescriptorHeaps() {
 	/* Render target view descriptor heap */
 	D3D12_DESCRIPTOR_HEAP_DESC rtvHeapDesc = { };
 	rtvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
-	rtvHeapDesc.NumDescriptors = this->nNumBackBuffers;
+	rtvHeapDesc.NumDescriptors = this->nNumRenderTargets;
 	rtvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_RTV;
 
 	ThrowIfFailed(this->dev->CreateDescriptorHeap(&rtvHeapDesc, IID_PPV_ARGS(this->rtvHeap.GetAddressOf())));
