@@ -18,7 +18,9 @@ Core::Core() {
 			
 			- ScreenQuad
 	*/
-	this->nNumFBO = 4;
+	this->nNumGBuffers = static_cast<UINT>(GBUFFER_TYPE::GBUFFER_TYPE_LENGTH);
+	this->nNumOtherFBOs = 1;
+	this->nNumFBO = this->nNumGBuffers + this->nNumOtherFBOs;
 
 	this->nNumRenderTargets = this->nNumFBO + this->nNumBackBuffers;
 
@@ -32,8 +34,10 @@ Core::Core() {
 	/* 
 		We use the number of back buffers for using it as an offset. 
 		We do this because if not, we will use our backbuffer indexes later and we don't want that. 
+
+		We add 1 because it will be the next index.
 	*/
-	this->rtvActualIndex = this->nNumBackBuffers;
+	this->rtvActualIndex = this->nNumBackBuffers + 1;
 
 	this->samplerActualIndex = 0;
 	this->cbv_srvActualIndex = 0;
@@ -151,10 +155,7 @@ void Core::Init() {
 
 	D3D12_HEAP_PROPERTIES fboProps = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
 
-	UINT nNumGBuffers = this->nNumFBO - 1; // We do -1 because we'll initialize our ScreenQuad on another class.
-
-
-	for (int i = 0; i < nNumGBuffers; i++ ) {
+	for (int i = 0; i < this->nNumGBuffers; i++ ) {
 		ComPtr<ID3D12Resource> fbo;
 		ThrowIfFailed(this->dev->CreateCommittedResource(
 			&fboProps,
@@ -169,10 +170,13 @@ void Core::Init() {
 		this->FBOs[type] = fbo;
 
 		UINT index = this->GetNewHeapIndex(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
+		this->gbufferIndices[type] = index;
 		CD3DX12_CPU_DESCRIPTOR_HANDLE GBuffHandle(rtvCPUHandle, index, nRTVHeapIncrementSize);
 
 		this->dev->CreateRenderTargetView(this->FBOs[type].Get(), &fboDesc, GBuffHandle);
 	}
+
+
 }
 
 /*!

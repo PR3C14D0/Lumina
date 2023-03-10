@@ -14,7 +14,9 @@ using namespace Microsoft::WRL;
 enum GBUFFER_TYPE {
 	ALBEDO = 0,
 	NORMAL = 1,
-	POSITION = 2
+	POSITION = 2,
+
+	GBUFFER_TYPE_LENGTH
 };
 
 class Core {
@@ -34,6 +36,8 @@ private:
 	UINT nNumBackBuffers;
 	UINT nNumRenderTargets;
 	UINT nNumFBO;
+	UINT nNumGBuffers;
+	UINT nNumOtherFBOs;
 
 	int width, height;
 
@@ -47,6 +51,7 @@ private:
 
 	std::vector<ComPtr<ID3D12Resource>> backBuffers;
 	std::map<GBUFFER_TYPE, ComPtr<ID3D12Resource>> FBOs;
+	std::map<GBUFFER_TYPE, UINT> gbufferIndices;
 
 	UINT rtvActualIndex;
 	UINT samplerActualIndex;
