@@ -6,6 +6,7 @@
 #include "DirectXIncludes.h"
 #include "Engine/Util.h"
 #include <map>
+#include "Engine/ScreenQuad.h"
 
 using namespace Microsoft::WRL;
 
@@ -15,6 +16,12 @@ enum GBUFFER_TYPE {
 	POSITION = 2,
 
 	GBUFFER_TYPE_LENGTH
+};
+
+enum VSYNC {
+	DISABLED = 0,
+	ENABLED = 1,
+	MEDIUM = 2
 };
 
 class Core {
@@ -48,7 +55,7 @@ private:
 	ComPtr<ID3D12DescriptorHeap> dsvHeap;
 
 	std::vector<ComPtr<ID3D12Resource>> backBuffers;
-	std::map<GBUFFER_TYPE, ComPtr<ID3D12Resource>> FBOs;
+	std::map<GBUFFER_TYPE, ComPtr<ID3D12Resource>> GBuffers;
 	std::map<GBUFFER_TYPE, UINT> gbufferIndices;
 
 	UINT rtvActualIndex;
@@ -64,8 +71,13 @@ private:
 	UINT nMultisampleCount;
 
 	void InitDescriptorHeaps();
+
+	ScreenQuad* screenQuad;
+
+	VSYNC vsyncState;
 public:
 	void SetHWND(HWND& hwnd);
+	HWND GetHWND();
 
 	UINT GetNewHeapIndex(D3D12_DESCRIPTOR_HEAP_TYPE type);
 
@@ -73,7 +85,15 @@ public:
 	D3D12_GPU_DESCRIPTOR_HANDLE GetDescriptorGPUHandle(D3D12_DESCRIPTOR_HEAP_TYPE type);
 	UINT GetDescriptorIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE type);
 
+	void GetWindowSize(int& width, int& height);
+	UINT GetMultiSampleCount();
+
+	void GetGBuffer(GBUFFER_TYPE type, ComPtr<ID3D12Resource>& outRes);
+
+	void GetDeviceAndCommandList(ComPtr<ID3D12Device>& dev, ComPtr<ID3D12GraphicsCommandList>& list);
+
 	void Init();
+	void MainLoop();
 
 	Core();
 	static Core* GetInstance();

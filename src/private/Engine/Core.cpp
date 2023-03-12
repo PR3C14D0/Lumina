@@ -2,6 +2,9 @@
 
 Core* Core::instance;
 
+/*!
+	Our core constructor.
+*/
 Core::Core() {
 	this->hwnd = NULL;
 	this->nNumBackBuffers = 2;
@@ -30,6 +33,8 @@ Core::Core() {
 	this->nCBV_SRVHeapIncrementSize = 0;
 
 	this->dsvActualIndex = 0;
+
+	this->vsyncState = VSYNC::ENABLED;
 
 	/* 
 		We use the number of back buffers for using it as an offset. 
@@ -167,16 +172,32 @@ void Core::Init() {
 		));
 		GBUFFER_TYPE type = static_cast<GBUFFER_TYPE>(i);
 
-		this->FBOs[type] = fbo;
+		this->GBuffers[type] = fbo;
 
 		UINT index = this->GetNewHeapIndex(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
 		this->gbufferIndices[type] = index;
 		CD3DX12_CPU_DESCRIPTOR_HANDLE GBuffHandle(rtvCPUHandle, index, nRTVHeapIncrementSize);
 
-		this->dev->CreateRenderTargetView(this->FBOs[type].Get(), &fboDesc, GBuffHandle);
+		this->dev->CreateRenderTargetView(this->GBuffers[type].Get(), &fboDesc, GBuffHandle);
 	}
 
+	this->screenQuad = new ScreenQuad();
+}
 
+/*
+	This method is for getting the specified G-Buffer;
+		For more info about deferred rendering: https://en.wikipedia.org/wiki/Deferred_shading
+*/
+void Core::GetGBuffer(GBUFFER_TYPE type, ComPtr<ID3D12Resource>& outRes) {
+	outRes = this->GBuffers[type];
+	return;
+}
+
+/*!
+	This method returns our core window.
+*/
+HWND Core::GetHWND() {
+	return this->hwnd;
 }
 
 /*!
@@ -314,6 +335,39 @@ void Core::InitDescriptorHeaps() {
 	this->nSamplerHeapIncrementSize = this->dev->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER);
 
 	return;
+}
+
+/*!
+	Our main core loop
+		Note: This method will be called once per frame.
+*/
+void Core::MainLoop() {
+	this->screenQuad->Render();
+	ThrowIfFailed(sc->Present(1, 0));
+}
+
+/*!
+	Gets the sample count specified before at the Core constructor.
+*/
+UINT Core::GetMultiSampleCount() {
+	return this->nMultisampleCount;
+}
+
+/*!
+	Gets our device and command list.
+*/
+void Core::GetDeviceAndCommandList(ComPtr<ID3D12Device>& dev, ComPtr<ID3D12GraphicsCommandList>& list) {
+	dev = this->dev;
+	list = this->list;
+	return;
+}
+
+/*!
+	This method gets our window size.
+*/
+void Core::GetWindowSize(int& width, int& height) {
+	width = this->width;
+	height = this->height;
 }
 
 /*!
