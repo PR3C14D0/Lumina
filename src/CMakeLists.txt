@@ -1,4 +1,4 @@
-﻿add_executable (Lumina "main.cpp"   "public/Engine/Core.h" "private/Engine/Core.cpp" "public/Engine/Util.h" "public/Engine/Scene/SceneManager.h" "private/Engine/Scene/SceneManager.cpp" "public/Engine/Scene/Scene.h" "private/Engine/Scene/Scene.cpp" "public/Engine/ScreenQuad.h" "public/DirectXIncludes.h")
+﻿add_executable (Lumina "main.cpp"   "public/Engine/Core.h" "private/Engine/Core.cpp" "public/Engine/Util.h" "public/Engine/ScreenQuad.h" "public/DirectXIncludes.h" "private/Engine/ScreenQuad.cpp" "public/Engine/Vertex.h")
 
 if (CMAKE_VERSION VERSION_GREATER 3.12)
   set_property(TARGET Lumina PROPERTY CXX_STANDARD 20)
