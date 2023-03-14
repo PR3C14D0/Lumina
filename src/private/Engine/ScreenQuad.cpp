@@ -140,44 +140,47 @@ bool ScreenQuad::InitRootSignature() {
 
 	UINT cbv_srvHeapIncrementSize = this->core->GetDescriptorIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV); // Get our CBV / SRV / UAV descriptor heap increment size
 	D3D12_CPU_DESCRIPTOR_HANDLE cbv_srvHandle = this->core->GetDescriptorCPUHandle(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV); // Get our CBV / SRV / UAV descriptor heap handle CPU handle.
+	D3D12_GPU_DESCRIPTOR_HANDLE cbv_srvGPUHandle = this->core->GetDescriptorGPUHandle(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV); // Get our CBV / SRV / UAV descriptor heap handle GPU handle.
 
 	/* Get our SRV handles for our G-Buffers */
 	D3D12_CPU_DESCRIPTOR_HANDLE albedoHandle = CD3DX12_CPU_DESCRIPTOR_HANDLE(cbv_srvHandle, albedoIndex, cbv_srvHeapIncrementSize);
-	D3D12_CPU_DESCRIPTOR_HANDLE positionHandle = CD3DX12_CPU_DESCRIPTOR_HANDLE(cbv_srvHandle, positionIndex, cbv_srvHeapIncrementSize);
 	D3D12_CPU_DESCRIPTOR_HANDLE normalHandle = CD3DX12_CPU_DESCRIPTOR_HANDLE(cbv_srvHandle, normalIndex, cbv_srvHeapIncrementSize);
+	D3D12_CPU_DESCRIPTOR_HANDLE positionHandle = CD3DX12_CPU_DESCRIPTOR_HANDLE(cbv_srvHandle, positionIndex, cbv_srvHeapIncrementSize);
+
+	this->albedoGPUHandle = CD3DX12_GPU_DESCRIPTOR_HANDLE(cbv_srvGPUHandle, albedoIndex, cbv_srvHeapIncrementSize);
+	this->normalGPUHandle = CD3DX12_GPU_DESCRIPTOR_HANDLE(cbv_srvGPUHandle, normalIndex, cbv_srvHeapIncrementSize);
+	this->positionGPUHandle = CD3DX12_GPU_DESCRIPTOR_HANDLE(cbv_srvGPUHandle, positionIndex, cbv_srvHeapIncrementSize);
 
 	/* Get our G-Buffer resources */
-	ComPtr<ID3D12Resource> albedo, position, normals;
+	this->core->GetGBuffer(GBUFFER_TYPE::ALBEDO, this->albedo);
+	this->core->GetGBuffer(GBUFFER_TYPE::POSITION, this->position);
+	this->core->GetGBuffer(GBUFFER_TYPE::NORMAL, this->normals);
 
-	this->core->GetGBuffer(GBUFFER_TYPE::ALBEDO, albedo);
-	this->core->GetGBuffer(GBUFFER_TYPE::POSITION, position);
-	this->core->GetGBuffer(GBUFFER_TYPE::NORMAL, normals);
-
-	this->dev->CreateShaderResourceView(albedo.Get(), &srvDesc, albedoHandle);
-	this->dev->CreateShaderResourceView(position.Get(), &srvDesc, positionHandle);
-	this->dev->CreateShaderResourceView(normals.Get(), &srvDesc, normalHandle);
+	this->dev->CreateShaderResourceView(this->albedo.Get(), &srvDesc, albedoHandle);
+	this->dev->CreateShaderResourceView(this->position.Get(), &srvDesc, positionHandle);
+	this->dev->CreateShaderResourceView(this->normals.Get(), &srvDesc, normalHandle);
 
 	CD3DX12_DESCRIPTOR_RANGE albedoRange;
 	CD3DX12_DESCRIPTOR_RANGE positionRange;
 	CD3DX12_DESCRIPTOR_RANGE normalRange;
 
 	albedoRange.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0);
-	positionRange.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 1);
-	normalRange.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 2);
+	normalRange.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 1);
+	positionRange.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 2);
 
 	CD3DX12_ROOT_PARAMETER albedoParam;
 	CD3DX12_ROOT_PARAMETER positionParam;
-	CD3DX12_ROOT_PARAMETER normalParam;
 
+	CD3DX12_ROOT_PARAMETER normalParam;
 	albedoParam.InitAsDescriptorTable(1, &albedoRange, D3D12_SHADER_VISIBILITY_PIXEL);
-	positionParam.InitAsDescriptorTable(1, &positionRange, D3D12_SHADER_VISIBILITY_PIXEL);
 	normalParam.InitAsDescriptorTable(1, &normalRange, D3D12_SHADER_VISIBILITY_PIXEL);
+	positionParam.InitAsDescriptorTable(1, &positionRange, D3D12_SHADER_VISIBILITY_PIXEL);
 
 	std::vector<D3D12_ROOT_PARAMETER> rootParams;
 
 	rootParams.push_back(albedoParam);
-	rootParams.push_back(positionParam);
 	rootParams.push_back(normalParam);
+	rootParams.push_back(positionParam);
 
 	ComPtr<ID3DBlob> rootSigBlob, rootSigErr;
 
@@ -242,6 +245,19 @@ void ScreenQuad::InitPipeline() {
 	Our ScreenQuad render method. This method will be called once per frame.
 */
 void ScreenQuad::Render() {
+	std::vector<D3D12_RESOURCE_BARRIER> barriers;
+	std::vector<ID3D12Resource*> resources;
+	resources.push_back(this->albedo.Get());
+	resources.push_back(this->normals.Get());
+	resources.push_back(this->position.Get());
+
+	for (ID3D12Resource* pResource : resources) {
+		D3D12_RESOURCE_BARRIER barrier = CD3DX12_RESOURCE_BARRIER::Transition(pResource, D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+		barriers.push_back(barrier);
+	}
+
+	this->list->ResourceBarrier(barriers.size(), barriers.data());
+
 	this->list->OMSetRenderTargets(1, &this->cpuHandle, FALSE, nullptr);
 	this->list->ClearRenderTargetView(this->cpuHandle, RGBA{0.f, 0.f, 0.f, 1.f}, 0, nullptr);
 	this->list->IASetVertexBuffers(0, 1, &this->vbv);
@@ -250,5 +266,16 @@ void ScreenQuad::Render() {
 	this->list->SetGraphicsRootSignature(this->rootSig.Get());
 	this->list->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
+	this->list->SetGraphicsRootDescriptorTable(0, this->albedoGPUHandle);
+	this->list->SetGraphicsRootDescriptorTable(1, this->normalGPUHandle);
+	this->list->SetGraphicsRootDescriptorTable(2, this->positionGPUHandle);
+
 	this->list->DrawIndexedInstanced(6, 1, 0, 0, 0);
+
+	barriers.clear();
+	for (ID3D12Resource* pResource : resources) {
+		D3D12_RESOURCE_BARRIER barrier = CD3DX12_RESOURCE_BARRIER::Transition(pResource, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
+		barriers.push_back(barrier);
+	}
+	this->list->ResourceBarrier(barriers.size(), barriers.data());
 }

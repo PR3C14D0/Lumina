@@ -402,15 +402,47 @@ void Core::InitDescriptorHeaps() {
 		Note: This method will be called once per frame.
 */
 void Core::MainLoop() {
+	/* Reset our command list and allocator */
 	ThrowIfFailed(this->alloc->Reset());
 	ThrowIfFailed(this->list->Reset(this->alloc.Get(), nullptr));
+
+	/* Rasterizer stage */
 	this->list->RSSetViewports(1, &this->viewport);
 	this->list->RSSetScissorRects(1, &this->scissorRect);
 
-	this->screenQuad->Render();
-	ThrowIfFailed(this->list->Close());
+	/* Set our descriptor heaps */
+	ID3D12DescriptorHeap* descriptorHeaps[] = {
+		this->samplerHeap.Get(),
+		this->cbv_srvHeap.Get(),
+	};
 
-	std::vector<D3D12_RESOURCE_BARRIER> rtvBarriers;
+	this->list->SetDescriptorHeaps(_countof(descriptorHeaps), descriptorHeaps);
+
+	this->screenQuad->Render(); // Render our ScreenQuad.
+
+	/* Resolve ScreenQuad */
+
+	std::vector<D3D12_RESOURCE_BARRIER> barriers;
+	D3D12_RESOURCE_BARRIER resolveBarrier = CD3DX12_RESOURCE_BARRIER::Transition(this->backBuffers[this->nCurrentBackBuffer].Get(), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RESOLVE_DEST);
+	D3D12_RESOURCE_BARRIER sqBarrier = CD3DX12_RESOURCE_BARRIER::Transition(this->screenQuad->resource.Get(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_RESOLVE_SOURCE);
+	barriers.push_back(resolveBarrier);
+	barriers.push_back(sqBarrier);
+	this->list->ResourceBarrier(barriers.size(), barriers.data());
+
+	this->list->ResolveSubresource(this->backBuffers[this->nCurrentBackBuffer].Get(), 0, this->screenQuad->resource.Get(), 0, DXGI_FORMAT_B8G8R8A8_UNORM);
+
+	barriers.clear();
+
+	resolveBarrier = CD3DX12_RESOURCE_BARRIER::Transition(this->backBuffers[this->nCurrentBackBuffer].Get(), D3D12_RESOURCE_STATE_RESOLVE_DEST, D3D12_RESOURCE_STATE_PRESENT);
+	sqBarrier = CD3DX12_RESOURCE_BARRIER::Transition(this->screenQuad->resource.Get(), D3D12_RESOURCE_STATE_RESOLVE_SOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
+	
+	barriers.push_back(resolveBarrier);
+	barriers.push_back(sqBarrier);
+	this->list->ResourceBarrier(barriers.size(), barriers.data());
+
+	ThrowIfFailed(this->list->Close()); // Close our command list
+
+	/* Execute our command list */
 
 	ID3D12CommandList* commandLists[] = {
 		this->list.Get()
@@ -419,9 +451,9 @@ void Core::MainLoop() {
 	UINT nNumCommandList = _countof(commandLists);
 
 	this->queue->ExecuteCommandLists(nNumCommandList, commandLists);
-	ThrowIfFailed(sc->Present(1, 0));
+	ThrowIfFailed(sc->Present(this->vsyncState, 0));
 
-	this->WaitFrame();
+	this->WaitFrame(); // Wait for our previous frame to draw and present.
 }
 
 /*!
@@ -436,6 +468,8 @@ void Core::WaitFrame() {
 		this->fence->SetEventOnCompletion(nFence, this->hFence);
 		WaitForSingleObject(this->hFence, INFINITE);
 	}
+	
+	this->nCurrentBackBuffer = this->sc->GetCurrentBackBufferIndex();
 
 	return;
 }

@@ -13,6 +13,7 @@ using namespace Microsoft::WRL;
 class Core;
 
 class ScreenQuad {
+	friend Core;
 private:
 	UINT rtvIncrementSize;
 	UINT rtvIndex;
@@ -30,7 +31,13 @@ private:
 
 	ComPtr<ID3D12Device> dev;
 	ComPtr<ID3D12GraphicsCommandList> list;
+
+	D3D12_GPU_DESCRIPTOR_HANDLE albedoGPUHandle;
+	D3D12_GPU_DESCRIPTOR_HANDLE normalGPUHandle;
+	D3D12_GPU_DESCRIPTOR_HANDLE positionGPUHandle;
 	
+	ComPtr<ID3D12Resource> albedo, position, normals;
+
 	int width, height;
 
 	Core* core;
