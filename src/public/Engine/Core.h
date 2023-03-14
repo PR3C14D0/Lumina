@@ -58,6 +58,8 @@ private:
 	std::map<GBUFFER_TYPE, ComPtr<ID3D12Resource>> GBuffers;
 	std::map<GBUFFER_TYPE, UINT> gbufferIndices;
 
+	ComPtr<ID3D12Resource> depthBuffer;
+
 	UINT rtvActualIndex;
 	UINT samplerActualIndex;
 	UINT cbv_srvActualIndex;
@@ -71,6 +73,16 @@ private:
 	UINT nMultisampleCount;
 
 	void InitDescriptorHeaps();
+	void InitDepthBuffer();
+
+	void WaitFrame();
+	UINT nCurrentFence;
+	UINT nCurrentBackBuffer;
+	ComPtr<ID3D12Fence> fence;
+	HANDLE hFence;
+
+	D3D12_VIEWPORT viewport;
+	D3D12_RECT scissorRect;
 
 	ScreenQuad* screenQuad;
 

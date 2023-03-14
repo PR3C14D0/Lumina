@@ -12,10 +12,7 @@ ScreenQuad::ScreenQuad() {
 
 	this->rtvIncrementSize = this->core->GetDescriptorIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
 	D3D12_CPU_DESCRIPTOR_HANDLE rtvCPUHandle = this->core->GetDescriptorCPUHandle(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
-	D3D12_GPU_DESCRIPTOR_HANDLE rtvGPUHandle = this->core->GetDescriptorGPUHandle(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
-
 	this->cpuHandle = CD3DX12_CPU_DESCRIPTOR_HANDLE(rtvCPUHandle, this->rtvIndex, this->rtvIncrementSize);
-	this->gpuHandle = CD3DX12_GPU_DESCRIPTOR_HANDLE(rtvGPUHandle, this->rtvIndex, this->rtvIncrementSize);
 
 	D3D12_RESOURCE_DESC resourceDesc = { };
 	resourceDesc.DepthOrArraySize = 1;
@@ -31,8 +28,6 @@ ScreenQuad::ScreenQuad() {
 
 	D3D12_CLEAR_VALUE clearValue = { };
 	clearValue.Color[3] = 1.f;
-	clearValue.DepthStencil.Depth = 1.f;
-	clearValue.DepthStencil.Stencil = 0.f;
 	clearValue.Format = resourceDesc.Format;
 
 	ThrowIfFailed(this->dev->CreateCommittedResource(
@@ -43,6 +38,17 @@ ScreenQuad::ScreenQuad() {
 		&clearValue,
 		IID_PPV_ARGS(this->resource.GetAddressOf())));
 
+	ThrowIfFailed(this->resource->SetName(L"ScreenQuad Buffer"));
+
+	D3D12_RENDER_TARGET_VIEW_DESC rtvDesc = { };
+	rtvDesc.Format = resourceDesc.Format;
+	rtvDesc.Texture2D.MipSlice = 1;
+	rtvDesc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2DMS;
+	
+	this->dev->CreateRenderTargetView(this->resource.Get(), &rtvDesc, this->cpuHandle);
+		
+	this->shader = new Shader(L"LightPass.hlsl", "VertexMain", "PixelMain");
+
 	this->InitBuffers();
 
 	/* Initialize our root signature */
@@ -51,6 +57,8 @@ ScreenQuad::ScreenQuad() {
 		delete this;
 		return;
 	}
+
+	this->InitPipeline();
 }
 
 /*!
@@ -58,13 +66,13 @@ ScreenQuad::ScreenQuad() {
 */
 void ScreenQuad::InitBuffers() {
 	ScreenQuadVertex vertices[] = {
-		{ 1.f, 1.f },
-		{ -1.f, 1.f },
-		{ 1.f, -1.f },
-		{ -1.f, -1.f },
+		{ -1.f, 1.f, 0.f },
+		{ 1.f, 1.f, 0.f },
+		{ -1.f, -1.f, 0.f },
+		{ 1.f, -1.f, 0.f },
 	};
-
-	int indices[] = {
+	
+	UINT indices[] = {
 		0, 1, 2,
 		2, 1, 3
 	};
@@ -103,6 +111,16 @@ void ScreenQuad::InitBuffers() {
 	this->indexBuffer->Map(0, nullptr, &map);
 	memcpy(map, indices, indicesSize);
 	this->indexBuffer->Unmap(0, nullptr);
+
+	this->vbv.BufferLocation = this->vertexBuffer->GetGPUVirtualAddress();
+	this->vbv.SizeInBytes = verticesSize;
+	this->vbv.StrideInBytes = sizeof(ScreenQuadVertex);
+
+	this->ibv.BufferLocation = this->indexBuffer->GetGPUVirtualAddress();
+	this->ibv.Format = DXGI_FORMAT_R32_UINT;
+	this->ibv.SizeInBytes = indicesSize;
+
+	return;
 }
 
 /*!
@@ -160,7 +178,7 @@ bool ScreenQuad::InitRootSignature() {
 	rootParams.push_back(albedoParam);
 	rootParams.push_back(positionParam);
 	rootParams.push_back(normalParam);
-	
+
 	ComPtr<ID3DBlob> rootSigBlob, rootSigErr;
 
 	D3D12_ROOT_SIGNATURE_DESC rootSigDesc = { };
@@ -183,9 +201,9 @@ bool ScreenQuad::InitRootSignature() {
 }
 
 /*!
-	This method will initialize our input layout.
+	This method initializes our ScreenQuad graphics pipeline.
 */
-void ScreenQuad::InitInputLayout() {
+void ScreenQuad::InitPipeline() {
 	D3D12_INPUT_ELEMENT_DESC elements[] = {
 		{"POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, NULL}
 	};
@@ -193,25 +211,44 @@ void ScreenQuad::InitInputLayout() {
 	UINT nNumElements = _countof(elements);
 
 	ZeroMemory(&this->layoutDesc, sizeof(D3D12_INPUT_LAYOUT_DESC));
-	
+
 	this->layoutDesc.NumElements = nNumElements;
 	this->layoutDesc.pInputElementDescs = elements;
-
-	return;
-}
-
-/*!
-	This method initializes our ScreenQuad graphics pipeline.
-*/
-void ScreenQuad::InitPipeline() {
+	
+	ComPtr<ID3DBlob> VS, PS;
+	this->shader->GetBlob(VS, PS);
 
 	D3D12_GRAPHICS_PIPELINE_STATE_DESC plDesc = { };
+	plDesc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
+	plDesc.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
+	plDesc.Flags = D3D12_PIPELINE_STATE_FLAG_NONE;
+	plDesc.pRootSignature = this->rootSig.Get();
+	plDesc.SampleDesc.Count = this->core->GetMultiSampleCount();
+	plDesc.SampleMask = UINT32_MAX;
+	plDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
+	plDesc.VS = CD3DX12_SHADER_BYTECODE(VS.Get());
+	plDesc.PS = CD3DX12_SHADER_BYTECODE(PS.Get());
+	plDesc.RTVFormats[0] = DXGI_FORMAT_B8G8R8A8_UNORM;
+	plDesc.InputLayout = this->layoutDesc;
+	plDesc.NumRenderTargets = 1;
+	plDesc.DepthStencilState = CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT);
+	plDesc.DepthStencilState.DepthEnable = FALSE;
+	plDesc.DepthStencilState.StencilEnable = FALSE;
 	
+	ThrowIfFailed(this->dev->CreateGraphicsPipelineState(&plDesc, IID_PPV_ARGS(this->plState.GetAddressOf())));
 }
 
 /*!
 	Our ScreenQuad render method. This method will be called once per frame.
 */
 void ScreenQuad::Render() {
-	
+	this->list->OMSetRenderTargets(1, &this->cpuHandle, FALSE, nullptr);
+	this->list->ClearRenderTargetView(this->cpuHandle, RGBA{0.f, 0.f, 0.f, 1.f}, 0, nullptr);
+	this->list->IASetVertexBuffers(0, 1, &this->vbv);
+	this->list->SetPipelineState(this->plState.Get());
+	this->list->IASetIndexBuffer(&this->ibv);
+	this->list->SetGraphicsRootSignature(this->rootSig.Get());
+	this->list->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+
+	this->list->DrawIndexedInstanced(6, 1, 0, 0, 0);
 }

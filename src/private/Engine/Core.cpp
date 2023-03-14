@@ -39,10 +39,8 @@ Core::Core() {
 	/* 
 		We use the number of back buffers for using it as an offset. 
 		We do this because if not, we will use our backbuffer indexes later and we don't want that. 
-
-		We add 1 because it will be the next index.
 	*/
-	this->rtvActualIndex = this->nNumBackBuffers + 1;
+	this->rtvActualIndex = this->nNumBackBuffers;
 
 	this->samplerActualIndex = 0;
 	this->cbv_srvActualIndex = 0;
@@ -128,6 +126,7 @@ void Core::Init() {
 
 	/* Creation of our graphics command list*/
 	ThrowIfFailed(this->dev->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, this->alloc.Get(), nullptr, IID_PPV_ARGS(this->list.GetAddressOf())));
+	ThrowIfFailed(this->list->Close());
 
 	UINT nRTVIncrementSize = this->GetDescriptorIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
 	D3D12_CPU_DESCRIPTOR_HANDLE rtvCPUHandle = this->GetDescriptorCPUHandle(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
@@ -181,7 +180,68 @@ void Core::Init() {
 		this->dev->CreateRenderTargetView(this->GBuffers[type].Get(), &fboDesc, GBuffHandle);
 	}
 
+	this->InitDepthBuffer();
+	
+	this->nCurrentFence = 0;
+	ThrowIfFailed(this->dev->CreateFence(this->nCurrentFence, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(this->fence.GetAddressOf())));
+	this->hFence = CreateEvent(nullptr, FALSE, FALSE, nullptr);
+	
+	ZeroMemory(&this->viewport, sizeof(D3D12_VIEWPORT));
+	this->viewport.Height = this->height;
+	this->viewport.Width = this->width;
+	this->viewport.TopLeftX = 0;
+	this->viewport.TopLeftY = 0;
+	this->viewport.MinDepth = 0.f;
+	this->viewport.MaxDepth = 1.f;
+
+	this->scissorRect = CD3DX12_RECT(0, 0, (LONG)this->width, (LONG)this->height);
+
+	this->WaitFrame();
+
 	this->screenQuad = new ScreenQuad();
+}
+
+void Core::InitDepthBuffer() {
+	D3D12_RESOURCE_DESC depthDesc = { };
+	depthDesc.DepthOrArraySize = 1;
+	depthDesc.MipLevels = 1;
+	depthDesc.Flags = D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL;
+	depthDesc.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
+	depthDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
+	depthDesc.Height = this->height;
+	depthDesc.Width = this->width;
+	depthDesc.SampleDesc.Count = this->nMultisampleCount;
+
+	D3D12_HEAP_PROPERTIES depthProps = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
+
+	D3D12_CLEAR_VALUE depthClearValue = { };
+	depthClearValue.DepthStencil.Depth = 1.f;
+	depthClearValue.DepthStencil.Stencil = 0.f;
+	depthClearValue.Format = depthDesc.Format;
+
+	ThrowIfFailed(this->dev->CreateCommittedResource(
+		&depthProps,
+		D3D12_HEAP_FLAG_NONE,
+		&depthDesc,
+		D3D12_RESOURCE_STATE_DEPTH_WRITE,
+		&depthClearValue,
+		IID_PPV_ARGS(this->depthBuffer.GetAddressOf())
+	));
+
+	UINT depthIndex = this->GetNewHeapIndex(D3D12_DESCRIPTOR_HEAP_TYPE_DSV);
+	D3D12_CPU_DESCRIPTOR_HANDLE dsvHandle = this->GetDescriptorCPUHandle(D3D12_DESCRIPTOR_HEAP_TYPE_DSV);
+	UINT dsvIncrementSize = this->GetDescriptorIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_DSV);
+
+	CD3DX12_CPU_DESCRIPTOR_HANDLE depthHandle(dsvHandle, depthIndex, dsvIncrementSize);
+
+	D3D12_DEPTH_STENCIL_VIEW_DESC dsvDesc = { };
+	dsvDesc.Flags = D3D12_DSV_FLAG_READ_ONLY_DEPTH;
+	dsvDesc.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2DMS;
+	dsvDesc.Format = depthDesc.Format;
+
+	this->dev->CreateDepthStencilView(this->depthBuffer.Get(), &dsvDesc, depthHandle);
+
+	return;
 }
 
 /*
@@ -342,8 +402,42 @@ void Core::InitDescriptorHeaps() {
 		Note: This method will be called once per frame.
 */
 void Core::MainLoop() {
+	ThrowIfFailed(this->alloc->Reset());
+	ThrowIfFailed(this->list->Reset(this->alloc.Get(), nullptr));
+	this->list->RSSetViewports(1, &this->viewport);
+	this->list->RSSetScissorRects(1, &this->scissorRect);
+
 	this->screenQuad->Render();
+	ThrowIfFailed(this->list->Close());
+
+	std::vector<D3D12_RESOURCE_BARRIER> rtvBarriers;
+
+	ID3D12CommandList* commandLists[] = {
+		this->list.Get()
+	};
+
+	UINT nNumCommandList = _countof(commandLists);
+
+	this->queue->ExecuteCommandLists(nNumCommandList, commandLists);
 	ThrowIfFailed(sc->Present(1, 0));
+
+	this->WaitFrame();
+}
+
+/*!
+	This method is for waiting for our previous frame to draw and present.
+*/
+void Core::WaitFrame() {
+	UINT nFence = this->nCurrentFence;
+	this->queue->Signal(this->fence.Get(), nFence);
+	this->nCurrentFence++;
+
+	if (this->fence->GetCompletedValue() < nFence) {
+		this->fence->SetEventOnCompletion(nFence, this->hFence);
+		WaitForSingleObject(this->hFence, INFINITE);
+	}
+
+	return;
 }
 
 /*!

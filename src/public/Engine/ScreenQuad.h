@@ -6,6 +6,7 @@
 #include "DirectXIncludes.h"
 #include "Engine/Util.h"
 #include "Engine/Vertex.h"
+#include "Engine/Shader/Shader.h"
 
 using namespace Microsoft::WRL;
 
@@ -16,7 +17,6 @@ private:
 	UINT rtvIncrementSize;
 	UINT rtvIndex;
 	D3D12_CPU_DESCRIPTOR_HANDLE cpuHandle;
-	D3D12_GPU_DESCRIPTOR_HANDLE gpuHandle;
 
 	ComPtr<ID3D12Resource> resource;
 
@@ -25,7 +25,7 @@ private:
 	D3D12_VERTEX_BUFFER_VIEW vbv;
 	D3D12_INDEX_BUFFER_VIEW ibv;
 
-	ComPtr<ID3D12PipelineLibrary> plState;
+	ComPtr<ID3D12PipelineState> plState;
 	ComPtr<ID3D12RootSignature> rootSig;
 
 	ComPtr<ID3D12Device> dev;
@@ -41,8 +41,9 @@ private:
 	void InitBuffers();
 
 	bool InitRootSignature();
-	void InitInputLayout();
 	void InitPipeline();
+
+	Shader* shader;
 
 public:
 	ScreenQuad();
