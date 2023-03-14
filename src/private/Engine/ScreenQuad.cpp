@@ -245,6 +245,7 @@ void ScreenQuad::InitPipeline() {
 	Our ScreenQuad render method. This method will be called once per frame.
 */
 void ScreenQuad::Render() {
+	/* Transition */
 	std::vector<D3D12_RESOURCE_BARRIER> barriers;
 	std::vector<ID3D12Resource*> resources;
 	resources.push_back(this->albedo.Get());
@@ -258,6 +259,7 @@ void ScreenQuad::Render() {
 
 	this->list->ResourceBarrier(barriers.size(), barriers.data());
 
+	/* Render */
 	this->list->OMSetRenderTargets(1, &this->cpuHandle, FALSE, nullptr);
 	this->list->ClearRenderTargetView(this->cpuHandle, RGBA{0.f, 0.f, 0.f, 1.f}, 0, nullptr);
 	this->list->IASetVertexBuffers(0, 1, &this->vbv);
@@ -272,10 +274,13 @@ void ScreenQuad::Render() {
 
 	this->list->DrawIndexedInstanced(6, 1, 0, 0, 0);
 
+	/* Transition */
 	barriers.clear();
+
 	for (ID3D12Resource* pResource : resources) {
 		D3D12_RESOURCE_BARRIER barrier = CD3DX12_RESOURCE_BARRIER::Transition(pResource, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
 		barriers.push_back(barrier);
 	}
+
 	this->list->ResourceBarrier(barriers.size(), barriers.data());
 }
