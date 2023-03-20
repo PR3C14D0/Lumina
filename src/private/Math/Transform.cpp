@@ -12,7 +12,8 @@ void Transform::translate(Vector3 translation) {
 }
 
 void Transform::translate(float x, float y, float z) {
-	this->translate(Vector3{ x, y, z });
+	Vector3 v = Vector3{ x, y, z };
+	this->translate(v);
 	return;
 }
 
@@ -22,6 +23,7 @@ void Transform::rotate(Vector3 rotation) {
 }
 
 void Transform::rotate(float x, float y, float z) {
-	this->rotate(Vector3{ x, y, z });
+	Vector3 v = Vector3{ x, y, z };
+	this->rotate(v);
 	return;
 }
