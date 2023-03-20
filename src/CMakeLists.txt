@@ -1,4 +1,4 @@
-﻿add_executable (Lumina "main.cpp"   "public/Engine/Core.h" "private/Engine/Core.cpp" "public/Engine/Util.h" "public/Engine/ScreenQuad.h" "public/DirectXIncludes.h" "private/Engine/ScreenQuad.cpp" "public/Engine/Vertex.h" "public/Engine/Shader/Shader.h" "private/Engine/Shader/Shader.cpp" "public/Engine/Scene/Scene.h" "private/Engine/Scene/Scene.cpp" "public/Engine/GameObject/GameObject.h" "private/Engine/GameObject/GameObject.cpp")
+﻿add_executable (Lumina "main.cpp"   "public/Engine/Core.h" "private/Engine/Core.cpp" "public/Engine/Util.h" "public/Engine/ScreenQuad.h" "public/DirectXIncludes.h" "private/Engine/ScreenQuad.cpp" "public/Engine/Vertex.h" "public/Engine/Shader/Shader.h" "private/Engine/Shader/Shader.cpp" "public/Engine/Scene/Scene.h" "private/Engine/Scene/Scene.cpp" "public/Engine/GameObject/GameObject.h" "private/Engine/GameObject/GameObject.cpp" "public/Math/Vector3.h" "private/Math/Vector3.cpp" "public/Math/Transform.h" "private/Math/Transform.cpp" "public/Engine/Camera/Camera.h" "private/Engine/Camera/Camera.cpp")
 
 if (CMAKE_VERSION VERSION_GREATER 3.12)
   set_property(TARGET Lumina PROPERTY CXX_STANDARD 20)
