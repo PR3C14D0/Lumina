@@ -26,3 +26,13 @@ void Scene::SetCamera(std::string cameraName) {
 		MessageBox(this->hwnd, "No GameObject with that name is placed on the scene.", "Error", MB_OK);
 	}
 }
+
+/*!
+	Our Scene main loop.
+		Note: This method will be called once per frame.
+*/
+void Scene::Update() {
+	/* Update our objects */
+	for (std::pair<std::string, GameObject*> obj : this->gameObjects)
+		obj.second->Update();
+}
