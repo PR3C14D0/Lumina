@@ -6,6 +6,7 @@ typedef float RGBA[4];
 
 struct Vertex {
 	RGB position;
+	RGB normal;
 	RG uv;
 };
 

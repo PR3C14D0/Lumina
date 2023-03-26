@@ -11,6 +11,16 @@ set(LIB "${CMAKE_CURRENT_SOURCE_DIR}/../lib")
 set(DX_LIB "dxgi.lib;d3d12.lib;d3dcompiler.lib")
 set(ASSIMP_LIB "${LIB}/assimp/assimp-vc143-mt.lib")
 
+<<<<<<< HEAD
+=======
+# DirectXTK12
+file(GLOB DXTK_FILES 
+	"${LIB}/directxtk/*.cpp"
+)
+add_library("DirectXTK12" "${DXTK_FILES}")
+
+# Link libraries
+>>>>>>> b9fef77 (Updated many things)
 target_link_libraries(Lumina "${DX_LIB}")
 target_link_libraries(Lumina "${ASSIMP_LIB}")
 
