@@ -5,6 +5,9 @@ if (CMAKE_VERSION VERSION_GREATER 3.12)
   set_property(TARGET Lumina PROPERTY WIN32_EXECUTABLE TRUE)
 endif()
 
+# Required by assimp
+add_compile_definitions(NOMINMAX)
+
 set(SOURCE_INCLUDES "${CMAKE_CURRENT_SOURCE_DIR}/public")
 set(GLOBAL_INCLUDES "${CMAKE_CURRENT_SOURCE_DIR}/../include")
 set(LIB "${CMAKE_CURRENT_SOURCE_DIR}/../lib")
