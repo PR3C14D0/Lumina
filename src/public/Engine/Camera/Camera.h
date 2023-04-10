@@ -1,6 +1,11 @@
 #pragma once
 #include <iostream>
 #include "Engine/GameObject/GameObject.h"
+#include <directx/DirectXMath.h>
+
+class Core;
+
+using namespace DirectX;
 
 class Core;
 
