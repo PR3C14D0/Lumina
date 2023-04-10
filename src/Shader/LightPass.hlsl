@@ -15,5 +15,19 @@ VertexOutput VertexMain(float4 position : POSITION)
 }
 
 float4 PixelMain(VertexOutput input, uint sampleIndex : SV_SampleIndex) : SV_Target {
-    return albedo.Load(input.position.xy, sampleIndex);
+    float4 albedoColor = albedo.Load(input.position.xy, sampleIndex);
+    float4 nml = normalize(normal.Load(input.position.xy, sampleIndex) * 2 - 1); // Unpack normals.
+    float4 vertexPos = position.Load(input.position.xy, sampleIndex);
+    
+    float4 ambientColor = float4(0.1f, 0.1f, 0.1f, 1.f);
+    float3 lightPos = float3(0.f, 1.f, -2.f);
+    float4 lightColor = float4(1.f, 0.f, .5f, 1.f);
+    
+    float3 lightDir = normalize(lightPos - vertexPos.xyz);
+    float NdotL = dot(lightDir, nml.xyz);
+    float diffuseColor = saturate(NdotL);
+    
+    albedoColor = (saturate(diffuseColor + ambientColor) * lightColor) * albedoColor;
+    
+    return albedoColor;
 }

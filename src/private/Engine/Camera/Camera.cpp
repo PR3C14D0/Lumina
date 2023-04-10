@@ -6,6 +6,8 @@ Camera::Camera(std::string name) : GameObject::GameObject(name) {
 	int width, height;
 	core->GetWindowSize(width, height);
 
+	this->transform.translate(0.f, -1.f, 0.f);
+	this->transform.rotate(-45.f, 0.f, 0.f);
 	this->View = XMMatrixTranspose(XMMatrixIdentity() * XMMatrixTranslation(this->transform.location.x, this->transform.location.y, this->transform.location.z));
 	this->Projection = XMMatrixTranspose(XMMatrixPerspectiveFovLH(XMConvertToRadians(90.f), (float)width / (float)height, 0.001f, 300.f));
 }
