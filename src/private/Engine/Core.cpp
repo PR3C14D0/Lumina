@@ -222,7 +222,7 @@ void Core::InitDepthBuffer() {
 
 	D3D12_CLEAR_VALUE depthClearValue = { };
 	depthClearValue.DepthStencil.Depth = 1.f;
-	depthClearValue.DepthStencil.Stencil = 0.f;
+	depthClearValue.DepthStencil.Stencil = 1.f;
 	depthClearValue.Format = depthDesc.Format;
 
 	ThrowIfFailed(this->dev->CreateCommittedResource(
@@ -234,14 +234,14 @@ void Core::InitDepthBuffer() {
 		IID_PPV_ARGS(this->depthBuffer.GetAddressOf())
 	));
 
-	UINT depthIndex = this->GetNewHeapIndex(D3D12_DESCRIPTOR_HEAP_TYPE_DSV);
+	this->depthIndex = this->GetNewHeapIndex(D3D12_DESCRIPTOR_HEAP_TYPE_DSV);
 	D3D12_CPU_DESCRIPTOR_HANDLE dsvHandle = this->GetDescriptorCPUHandle(D3D12_DESCRIPTOR_HEAP_TYPE_DSV);
 	UINT dsvIncrementSize = this->GetDescriptorIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_DSV);
 
 	CD3DX12_CPU_DESCRIPTOR_HANDLE depthHandle(dsvHandle, depthIndex, dsvIncrementSize);
 
 	D3D12_DEPTH_STENCIL_VIEW_DESC dsvDesc = { };
-	dsvDesc.Flags = D3D12_DSV_FLAG_READ_ONLY_DEPTH;
+	dsvDesc.Flags = D3D12_DSV_FLAG_NONE;
 	dsvDesc.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2DMS;
 	dsvDesc.Format = depthDesc.Format;
 
@@ -434,12 +434,12 @@ void Core::MainLoop() {
 	};
 	UINT nNumGBuffHandles = _countof(gBuffHandles);
 
-	D3D12_CPU_DESCRIPTOR_HANDLE dsvHandle = this->dsvHeap->GetCPUDescriptorHandleForHeapStart();
+	D3D12_CPU_DESCRIPTOR_HANDLE depthHandle = CD3DX12_CPU_DESCRIPTOR_HANDLE(this->dsvHeap->GetCPUDescriptorHandleForHeapStart(), this->depthIndex, this->nDSVHeapIncrementSize);
 
 	this->list->ClearRenderTargetView(albedoHandle, RGBA{ 0.f, 0.f, 0.f, 1.f }, 0, nullptr);
 	this->list->ClearRenderTargetView(normalHandle, RGBA{ 0.f, 0.f, 0.f, 1.f }, 0, nullptr);
 	this->list->ClearRenderTargetView(positionHandle, RGBA{ 0.f, 0.f, 0.f, 1.f }, 0, nullptr);
-	this->list->ClearDepthStencilView(dsvHandle, D3D12_CLEAR_FLAG_DEPTH, 1.f, 0.f, 0, nullptr);
+	this->list->ClearDepthStencilView(depthHandle, D3D12_CLEAR_FLAG_DEPTH, 1.f, 0.f, 0, nullptr);
 
 	/* Rasterizer stage */
 	this->list->RSSetViewports(1, &this->viewport);
@@ -454,7 +454,7 @@ void Core::MainLoop() {
 	this->list->SetDescriptorHeaps(_countof(descriptorHeaps), descriptorHeaps);
 
 	/* Output Merger */
-	this->list->OMSetRenderTargets(nNumGBuffHandles, gBuffHandles, FALSE, &dsvHandle);
+	this->list->OMSetRenderTargets(nNumGBuffHandles, gBuffHandles, FALSE, &depthHandle);
 
 	this->sceneMgr->Update();
 

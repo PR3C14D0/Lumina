@@ -26,6 +26,9 @@ private:
 	ComPtr<ID3D12CommandQueue> queue;
 	
 	ComPtr<ID3D12Resource> texture; // TODO: Allow multiple textures.
+	UINT nTextureIndex;
+	UINT nSamplerIndex;
+
 	ComPtr<ID3D12Resource> VBO; // TODO: Allow multiple vertex buffers.
 	D3D12_VERTEX_BUFFER_VIEW VBV;
 
@@ -46,12 +49,18 @@ private:
 	WVP wvp;
 	ComPtr<ID3D12Resource> cbuffer;
 	UINT nWVPIndex;
-	D3D12_CPU_DESCRIPTOR_HANDLE cbvCPUHandle;
-	D3D12_GPU_DESCRIPTOR_HANDLE cbvGPUHandle;
+
+	D3D12_CPU_DESCRIPTOR_HANDLE cbv_srvCPUHandle;
+	D3D12_GPU_DESCRIPTOR_HANDLE cbv_srvGPUHandle;
 	UINT nCBVHeapIncrementSize;
+
+	D3D12_CPU_DESCRIPTOR_HANDLE samplerCPUHandle;
+	D3D12_GPU_DESCRIPTOR_HANDLE samplerGPUHandle;
+	UINT nSamplerIncrementSize;
 
 	void InitCBuffer();
 	void UpdateCBuffer();
+	void PrepareTextures();
 public:
 	Mesh(Transform* parentTransform);
 

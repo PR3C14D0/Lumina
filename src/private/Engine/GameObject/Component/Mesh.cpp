@@ -21,6 +21,14 @@ Mesh::Mesh(Transform* parentTransform) : Component::Component() {
    
 	this->wvp.View = XMMatrixTranspose(XMMatrixIdentity());
 	this->wvp.Projection = XMMatrixTranspose(XMMatrixIdentity());
+
+	this->cbv_srvCPUHandle = this->core->GetDescriptorCPUHandle(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+	this->cbv_srvGPUHandle = this->core->GetDescriptorGPUHandle(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+	this->nCBVHeapIncrementSize = this->core->GetDescriptorIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+
+	this->samplerCPUHandle = this->core->GetDescriptorCPUHandle(D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER);
+	this->samplerGPUHandle = this->core->GetDescriptorGPUHandle(D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER);
+	this->nSamplerIncrementSize = this->core->GetDescriptorIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 }
 
 void Mesh::Start() {
@@ -30,6 +38,7 @@ void Mesh::Start() {
 		this->InitCBuffer();
 		this->UploadBuffers();
 		this->InitPipeline();
+		this->PrepareTextures();
 	}
 }
 
@@ -40,6 +49,7 @@ void Mesh::Update() {
 	if (this->bMeshLoaded) {
 		this->UpdateCBuffer();
 		this->Draw();
+		this->transform->rotate(0.f, 0.1f, 0.f);
 	}
 }
 
@@ -61,11 +71,8 @@ void Mesh::InitCBuffer() {
 	cbv.SizeInBytes = alignedCBuffSize;
 
 	this->nWVPIndex = this->core->GetNewHeapIndex(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-	this->cbvCPUHandle = this->core->GetDescriptorCPUHandle(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-	this->cbvGPUHandle = this->core->GetDescriptorGPUHandle(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-	this->nCBVHeapIncrementSize = this->core->GetDescriptorIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 
-	D3D12_CPU_DESCRIPTOR_HANDLE cbuffHandle = CD3DX12_CPU_DESCRIPTOR_HANDLE(this->cbvCPUHandle, this->nWVPIndex, nCBVHeapIncrementSize);
+	D3D12_CPU_DESCRIPTOR_HANDLE cbuffHandle = CD3DX12_CPU_DESCRIPTOR_HANDLE(this->cbv_srvCPUHandle, this->nWVPIndex, nCBVHeapIncrementSize);
 
 	this->dev->CreateConstantBufferView(&cbv, cbuffHandle);
 
@@ -74,12 +81,24 @@ void Mesh::InitCBuffer() {
 
 void Mesh::InitPipeline() {
 	CD3DX12_DESCRIPTOR_RANGE wvpRange;
-	CD3DX12_ROOT_PARAMETER wvpParam;
+	CD3DX12_DESCRIPTOR_RANGE samplerRange;
+	CD3DX12_DESCRIPTOR_RANGE textureRange;
+
 	wvpRange.Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1, 0, 0);
+	samplerRange.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER, 1, 0, 0);
+	textureRange.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0, 0);
+
+	CD3DX12_ROOT_PARAMETER wvpParam;
+	CD3DX12_ROOT_PARAMETER samplerParam;
+	CD3DX12_ROOT_PARAMETER textureParam;
 	wvpParam.InitAsDescriptorTable(1, &wvpRange, D3D12_SHADER_VISIBILITY_VERTEX);
+	samplerParam.InitAsDescriptorTable(1, &samplerRange, D3D12_SHADER_VISIBILITY_PIXEL);
+	textureParam.InitAsDescriptorTable(1, &textureRange, D3D12_SHADER_VISIBILITY_PIXEL);
 
 	D3D12_ROOT_PARAMETER params[] = {
-		wvpParam
+		wvpParam,
+		samplerParam,
+		textureParam
 	};
 
 	D3D12_ROOT_SIGNATURE_DESC rootSigDesc = { };
@@ -145,8 +164,13 @@ void Mesh::Draw() {
 	this->list->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 	this->list->SetPipelineState(this->plState.Get());
 
-	D3D12_GPU_DESCRIPTOR_HANDLE cbuffHandle = CD3DX12_GPU_DESCRIPTOR_HANDLE(this->cbvGPUHandle, this->nWVPIndex, nCBVHeapIncrementSize);
+	D3D12_GPU_DESCRIPTOR_HANDLE cbuffHandle = CD3DX12_GPU_DESCRIPTOR_HANDLE(this->cbv_srvGPUHandle, this->nWVPIndex, this->nCBVHeapIncrementSize);
+	D3D12_GPU_DESCRIPTOR_HANDLE texSamplerHandle = CD3DX12_GPU_DESCRIPTOR_HANDLE(this->samplerGPUHandle, this->nSamplerIndex, this->nCBVHeapIncrementSize);
+	D3D12_GPU_DESCRIPTOR_HANDLE textureHandle = CD3DX12_GPU_DESCRIPTOR_HANDLE(this->cbv_srvGPUHandle, this->nTextureIndex, this->nCBVHeapIncrementSize);
+
 	this->list->SetGraphicsRootDescriptorTable(0, cbuffHandle);
+	this->list->SetGraphicsRootDescriptorTable(1, texSamplerHandle);
+	this->list->SetGraphicsRootDescriptorTable(2, textureHandle);
 
 	this->list->DrawInstanced(this->vertices.size(), 1, 0, 0);
 }
@@ -177,6 +201,35 @@ void Mesh::UploadBuffers() {
 	this->VBV.SizeInBytes = nVerticesSize;
 	this->VBV.StrideInBytes = sizeof(Vertex);
 
+	return;
+}
+
+void Mesh::PrepareTextures() {
+	this->nTextureIndex = this->core->GetNewHeapIndex(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+	D3D12_CPU_DESCRIPTOR_HANDLE textureCPUHandle = CD3DX12_CPU_DESCRIPTOR_HANDLE(this->cbv_srvCPUHandle, this->nTextureIndex, this->nCBVHeapIncrementSize);
+
+	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = { };
+	srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+	srvDesc.Texture2D.MipLevels = 1;
+	srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+	srvDesc.Format = this->texture->GetDesc().Format;
+
+	this->dev->CreateShaderResourceView(this->texture.Get(), &srvDesc, textureCPUHandle);
+
+	D3D12_SAMPLER_DESC samplerDesc = { };
+	samplerDesc.AddressU = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
+	samplerDesc.AddressV = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
+	samplerDesc.AddressW = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
+	samplerDesc.ComparisonFunc = D3D12_COMPARISON_FUNC_NONE;
+	samplerDesc.Filter = D3D12_FILTER_MIN_MAG_MIP_POINT;
+	samplerDesc.MaxLOD = D3D12_FLOAT32_MAX;
+	samplerDesc.MaxAnisotropy = 1;
+
+	this->nSamplerIndex = this->core->GetNewHeapIndex(D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER);
+	D3D12_CPU_DESCRIPTOR_HANDLE texSamplerHandle = CD3DX12_CPU_DESCRIPTOR_HANDLE(this->samplerCPUHandle, this->nSamplerIndex, this->nSamplerIncrementSize);
+
+	this->dev->CreateSampler(&samplerDesc, texSamplerHandle);
+	
 	return;
 }
 
@@ -234,7 +287,7 @@ void Mesh::LoadFromFile(std::string file) {
 
 		if (mesh->HasTextureCoords(0)) {
 			uv[0] = mesh->mTextureCoords[0][i].x;
-			uv[0] = mesh->mTextureCoords[0][i].x;
+			uv[1] = mesh->mTextureCoords[0][i].y;
 		}
 
 		Vertex vertex = { { pos[0], pos[1], pos[2] }, { nml[0], nml[1], nml[2] }, { uv[0], uv[1] } };

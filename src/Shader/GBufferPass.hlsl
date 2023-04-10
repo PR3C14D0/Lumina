@@ -13,6 +13,9 @@ cbuffer WVP : register(b0)
     matrix Projection;
 }
 
+SamplerState texSampler : register(s0);
+Texture2D tex : register(t0);
+
 VertexOutput VertexMain(float4 position : POSITION, float4 normal : NORMAL, float2 uv : TEXCOORD)
 {
     VertexOutput output;
@@ -35,7 +38,7 @@ struct PixelOutput
 PixelOutput PixelMain(VertexOutput input)
 {
     PixelOutput output;
-    output.albedo = float4(1.f, 0.f, 0.f, 1.f);
+    output.albedo = tex.Sample(texSampler, float2(input.uv.x, 1 - input.uv.y));
     output.normal = input.normal * 0.5f + 0.5f;
     output.position = input.vertexPos;
     return output;

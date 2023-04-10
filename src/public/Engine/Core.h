@@ -59,6 +59,7 @@ private:
 	std::map<GBUFFER_TYPE, ComPtr<ID3D12Resource>> GBuffers;
 
 	ComPtr<ID3D12Resource> depthBuffer;
+	UINT depthIndex;
 
 	UINT rtvActualIndex;
 	UINT samplerActualIndex;
