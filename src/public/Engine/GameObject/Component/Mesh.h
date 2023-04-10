@@ -45,6 +45,10 @@ private:
 
 	WVP wvp;
 	ComPtr<ID3D12Resource> cbuffer;
+	UINT nWVPIndex;
+	D3D12_CPU_DESCRIPTOR_HANDLE cbvCPUHandle;
+	D3D12_GPU_DESCRIPTOR_HANDLE cbvGPUHandle;
+	UINT nCBVHeapIncrementSize;
 
 	void InitCBuffer();
 	void UpdateCBuffer();

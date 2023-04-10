@@ -60,11 +60,12 @@ void Mesh::InitCBuffer() {
 	cbv.BufferLocation = this->cbuffer->GetGPUVirtualAddress();
 	cbv.SizeInBytes = alignedCBuffSize;
 
-	UINT nCBuffIndex = this->core->GetNewHeapIndex(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-	D3D12_CPU_DESCRIPTOR_HANDLE cbvHandle = this->core->GetDescriptorCPUHandle(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-	UINT nCBVHeapIncrementSize = this->core->GetDescriptorIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+	this->nWVPIndex = this->core->GetNewHeapIndex(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+	this->cbvCPUHandle = this->core->GetDescriptorCPUHandle(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+	this->cbvGPUHandle = this->core->GetDescriptorGPUHandle(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+	this->nCBVHeapIncrementSize = this->core->GetDescriptorIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 
-	D3D12_CPU_DESCRIPTOR_HANDLE cbuffHandle = CD3DX12_CPU_DESCRIPTOR_HANDLE(cbvHandle, nCBuffIndex, nCBVHeapIncrementSize);
+	D3D12_CPU_DESCRIPTOR_HANDLE cbuffHandle = CD3DX12_CPU_DESCRIPTOR_HANDLE(this->cbvCPUHandle, this->nWVPIndex, nCBVHeapIncrementSize);
 
 	this->dev->CreateConstantBufferView(&cbv, cbuffHandle);
 
@@ -72,11 +73,20 @@ void Mesh::InitCBuffer() {
 }
 
 void Mesh::InitPipeline() {
+	CD3DX12_DESCRIPTOR_RANGE wvpRange;
+	CD3DX12_ROOT_PARAMETER wvpParam;
+	wvpRange.Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1, 0, 0);
+	wvpParam.InitAsDescriptorTable(1, &wvpRange, D3D12_SHADER_VISIBILITY_VERTEX);
+
+	D3D12_ROOT_PARAMETER params[] = {
+		wvpParam
+	};
+
 	D3D12_ROOT_SIGNATURE_DESC rootSigDesc = { };
 	rootSigDesc.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
-	rootSigDesc.NumParameters = 0;
+	rootSigDesc.NumParameters = _countof(params);
 	rootSigDesc.NumStaticSamplers = 0;
-	rootSigDesc.pParameters = nullptr;
+	rootSigDesc.pParameters = params;
 	rootSigDesc.pStaticSamplers = nullptr;
 
 	ComPtr<ID3DBlob> rsBlob, rsErr;
@@ -130,10 +140,13 @@ void Mesh::InitPipeline() {
 	Our mesh draw method.
 */
 void Mesh::Draw() {
-	this->list->IASetVertexBuffers(0, 1, &this->VBV);
 	this->list->SetGraphicsRootSignature(this->rootSig.Get());
+	this->list->IASetVertexBuffers(0, 1, &this->VBV);
 	this->list->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 	this->list->SetPipelineState(this->plState.Get());
+
+	D3D12_GPU_DESCRIPTOR_HANDLE cbuffHandle = CD3DX12_GPU_DESCRIPTOR_HANDLE(this->cbvGPUHandle, this->nWVPIndex, nCBVHeapIncrementSize);
+	this->list->SetGraphicsRootDescriptorTable(0, cbuffHandle);
 
 	this->list->DrawInstanced(this->vertices.size(), 1, 0, 0);
 }

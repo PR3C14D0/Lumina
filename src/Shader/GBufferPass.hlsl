@@ -6,10 +6,19 @@ struct VertexOutput
     float4 vertexPos : POSITION0;
 };
 
+cbuffer WVP : register(b0)
+{
+    matrix World;
+    matrix View;
+    matrix Projection;
+}
+
 VertexOutput VertexMain(float4 position : POSITION, float4 normal : NORMAL, float2 uv : TEXCOORD)
 {
     VertexOutput output;
-    output.position = position;
+    output.position = mul(position, World);
+    output.position = mul(output.position, View);
+    output.position = mul(output.position, Projection);
     output.normal = normal;
     output.uv = uv;
     output.vertexPos = position;

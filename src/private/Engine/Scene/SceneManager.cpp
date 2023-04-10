@@ -15,6 +15,7 @@ void SceneManager::Start() {
 	Mesh* mesh = new Mesh(&sampleObj->transform);
 	sampleScene->gameObjects["Test"] = sampleObj;
 	this->actualScene = sampleScene;
+	sampleObj->transform.translate(0.f, 0.f, 2.f);
 
 	mesh->LoadFromFile("f16.fbx");
 	sampleObj->AddComponent<Mesh>(mesh);
