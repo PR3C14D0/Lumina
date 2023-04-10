@@ -57,7 +57,7 @@ void Core::SetHWND(HWND& hwnd) {
 	This method is our singleton initiazation method.
 		Note: This method must be called once.
 */
-void Core::Init() {
+void Core::Start() {
 	if (!this->hwnd) {
 		MessageBox(NULL, "No window found", "Error", MB_OK);
 		return;
@@ -159,6 +159,10 @@ void Core::Init() {
 
 	D3D12_HEAP_PROPERTIES fboProps = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
 
+	D3D12_CLEAR_VALUE fboClear = { };
+	fboClear.Color[3] = 1.f;
+	fboClear.Format = DXGI_FORMAT_B8G8R8A8_UNORM;
+
 	for (int i = 0; i < this->nNumGBuffers; i++ ) {
 		ComPtr<ID3D12Resource> fbo;
 		ThrowIfFailed(this->dev->CreateCommittedResource(
@@ -166,7 +170,7 @@ void Core::Init() {
 			D3D12_HEAP_FLAG_NONE,
 			&fboResDesc,
 			D3D12_RESOURCE_STATE_RENDER_TARGET,
-			nullptr,
+			&fboClear,
 			IID_PPV_ARGS(fbo.GetAddressOf())
 		));
 		GBUFFER_TYPE type = static_cast<GBUFFER_TYPE>(i);
@@ -180,6 +184,7 @@ void Core::Init() {
 		this->dev->CreateRenderTargetView(this->GBuffers[type].Get(), &fboDesc, GBuffHandle);
 	}
 
+	this->sceneMgr = new SceneManager();
 	this->InitDepthBuffer();
 	
 	this->nCurrentFence = 0;
@@ -198,6 +203,7 @@ void Core::Init() {
 
 	this->WaitFrame();
 
+	this->sceneMgr->Start();
 	this->screenQuad = new ScreenQuad();
 }
 
@@ -216,7 +222,7 @@ void Core::InitDepthBuffer() {
 
 	D3D12_CLEAR_VALUE depthClearValue = { };
 	depthClearValue.DepthStencil.Depth = 1.f;
-	depthClearValue.DepthStencil.Stencil = 0.f;
+	depthClearValue.DepthStencil.Stencil = 1.f;
 	depthClearValue.Format = depthDesc.Format;
 
 	ThrowIfFailed(this->dev->CreateCommittedResource(
@@ -228,14 +234,14 @@ void Core::InitDepthBuffer() {
 		IID_PPV_ARGS(this->depthBuffer.GetAddressOf())
 	));
 
-	UINT depthIndex = this->GetNewHeapIndex(D3D12_DESCRIPTOR_HEAP_TYPE_DSV);
+	this->depthIndex = this->GetNewHeapIndex(D3D12_DESCRIPTOR_HEAP_TYPE_DSV);
 	D3D12_CPU_DESCRIPTOR_HANDLE dsvHandle = this->GetDescriptorCPUHandle(D3D12_DESCRIPTOR_HEAP_TYPE_DSV);
 	UINT dsvIncrementSize = this->GetDescriptorIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_DSV);
 
 	CD3DX12_CPU_DESCRIPTOR_HANDLE depthHandle(dsvHandle, depthIndex, dsvIncrementSize);
 
 	D3D12_DEPTH_STENCIL_VIEW_DESC dsvDesc = { };
-	dsvDesc.Flags = D3D12_DSV_FLAG_READ_ONLY_DEPTH;
+	dsvDesc.Flags = D3D12_DSV_FLAG_NONE;
 	dsvDesc.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2DMS;
 	dsvDesc.Format = depthDesc.Format;
 
@@ -363,6 +369,7 @@ void Core::InitDescriptorHeaps() {
 	rtvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_RTV;
 
 	ThrowIfFailed(this->dev->CreateDescriptorHeap(&rtvHeapDesc, IID_PPV_ARGS(this->rtvHeap.GetAddressOf())));
+	this->rtvHeap->SetName(L"RTV Descriptor Heap");
 
 	/* Constant buffer view & shader resource view descriptor heap */
 	D3D12_DESCRIPTOR_HEAP_DESC cbv_srvHeapDesc = { };
@@ -371,6 +378,7 @@ void Core::InitDescriptorHeaps() {
 	cbv_srvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
 	
 	ThrowIfFailed(this->dev->CreateDescriptorHeap(&cbv_srvHeapDesc, IID_PPV_ARGS(this->cbv_srvHeap.GetAddressOf())));
+	this->cbv_srvHeap->SetName(L"CBV SRV UAV Descriptor Heap");
 
 	/* Depth Stencil view descriptor heap */
 	D3D12_DESCRIPTOR_HEAP_DESC dsvHeapDesc = { };
@@ -379,6 +387,7 @@ void Core::InitDescriptorHeaps() {
 	dsvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
 
 	ThrowIfFailed(this->dev->CreateDescriptorHeap(&dsvHeapDesc, IID_PPV_ARGS(this->dsvHeap.GetAddressOf())));
+	this->dsvHeap->SetName(L"DSV Descriptor Heap");
 
 	/* Sampler descriptor heap */
 	D3D12_DESCRIPTOR_HEAP_DESC samplerHeapDesc = { };
@@ -387,6 +396,7 @@ void Core::InitDescriptorHeaps() {
 	samplerHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER;
 
 	ThrowIfFailed(this->dev->CreateDescriptorHeap(&samplerHeapDesc, IID_PPV_ARGS(this->samplerHeap.GetAddressOf())));
+	this->samplerHeap->SetName(L"Sampler Descriptor Heap");
 
 	/* Set increment sizes */
 	this->nRTVHeapIncrementSize = this->dev->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
@@ -406,6 +416,31 @@ void Core::MainLoop() {
 	ThrowIfFailed(this->alloc->Reset());
 	ThrowIfFailed(this->list->Reset(this->alloc.Get(), nullptr));
 
+
+	UINT nAlbedoIndex = this->gbufferIndices[ALBEDO];
+	UINT nNormalIndex = this->gbufferIndices[NORMAL];
+	UINT nPositionIndex = this->gbufferIndices[POSITION];
+
+	D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle = this->GetDescriptorCPUHandle(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
+
+	D3D12_CPU_DESCRIPTOR_HANDLE albedoHandle = CD3DX12_CPU_DESCRIPTOR_HANDLE(rtvHandle, nAlbedoIndex, this->nRTVHeapIncrementSize);
+	D3D12_CPU_DESCRIPTOR_HANDLE normalHandle = CD3DX12_CPU_DESCRIPTOR_HANDLE(rtvHandle, nNormalIndex, this->nRTVHeapIncrementSize);
+	D3D12_CPU_DESCRIPTOR_HANDLE positionHandle = CD3DX12_CPU_DESCRIPTOR_HANDLE(rtvHandle, nPositionIndex, this->nRTVHeapIncrementSize);
+
+	D3D12_CPU_DESCRIPTOR_HANDLE gBuffHandles[] = {
+		albedoHandle,
+		normalHandle,
+		positionHandle
+	};
+	UINT nNumGBuffHandles = _countof(gBuffHandles);
+
+	D3D12_CPU_DESCRIPTOR_HANDLE depthHandle = CD3DX12_CPU_DESCRIPTOR_HANDLE(this->dsvHeap->GetCPUDescriptorHandleForHeapStart(), this->depthIndex, this->nDSVHeapIncrementSize);
+
+	this->list->ClearRenderTargetView(albedoHandle, RGBA{ 0.f, 0.f, 0.f, 1.f }, 0, nullptr);
+	this->list->ClearRenderTargetView(normalHandle, RGBA{ 0.f, 0.f, 0.f, 1.f }, 0, nullptr);
+	this->list->ClearRenderTargetView(positionHandle, RGBA{ 0.f, 0.f, 0.f, 1.f }, 0, nullptr);
+	this->list->ClearDepthStencilView(depthHandle, D3D12_CLEAR_FLAG_DEPTH, 1.f, 0.f, 0, nullptr);
+
 	/* Rasterizer stage */
 	this->list->RSSetViewports(1, &this->viewport);
 	this->list->RSSetScissorRects(1, &this->scissorRect);
@@ -418,11 +453,25 @@ void Core::MainLoop() {
 
 	this->list->SetDescriptorHeaps(_countof(descriptorHeaps), descriptorHeaps);
 
+	/* Output Merger */
+	this->list->OMSetRenderTargets(nNumGBuffHandles, gBuffHandles, FALSE, &depthHandle);
+
+	this->sceneMgr->Update();
+
+	std::vector<D3D12_RESOURCE_BARRIER> barriers;
+	D3D12_RESOURCE_BARRIER backBufferBarrier = CD3DX12_RESOURCE_BARRIER::Transition(this->backBuffers[this->nCurrentBackBuffer].Get(), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
+	barriers.push_back(backBufferBarrier);
+	this->list->ResourceBarrier(barriers.size(), barriers.data());
+
+	backBufferBarrier = CD3DX12_RESOURCE_BARRIER::Transition(this->backBuffers[this->nCurrentBackBuffer].Get(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
+	barriers.clear();
+	barriers.push_back(backBufferBarrier);
+	this->list->ResourceBarrier(barriers.size(), barriers.data());
+
 	this->screenQuad->Render(); // Render our ScreenQuad.
 
 	/* Resolve ScreenQuad */
-
-	std::vector<D3D12_RESOURCE_BARRIER> barriers;
+	barriers.clear();
 	D3D12_RESOURCE_BARRIER resolveBarrier = CD3DX12_RESOURCE_BARRIER::Transition(this->backBuffers[this->nCurrentBackBuffer].Get(), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RESOLVE_DEST);
 	D3D12_RESOURCE_BARRIER sqBarrier = CD3DX12_RESOURCE_BARRIER::Transition(this->screenQuad->resource.Get(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_RESOLVE_SOURCE);
 	barriers.push_back(resolveBarrier);
@@ -487,6 +536,21 @@ UINT Core::GetMultiSampleCount() {
 void Core::GetDeviceAndCommandList(ComPtr<ID3D12Device>& dev, ComPtr<ID3D12GraphicsCommandList>& list) {
 	dev = this->dev;
 	list = this->list;
+	return;
+}
+
+/*!
+	This method returns our SceneManager instance.
+*/
+SceneManager* Core::GetSceneManager() {
+	return this->sceneMgr;
+}
+
+/*!
+	This method will get our command queue.
+*/
+void Core::GetCommandQueue(ComPtr<ID3D12CommandQueue>& queue) {
+	queue = this->queue;
 	return;
 }
 

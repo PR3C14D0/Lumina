@@ -7,6 +7,10 @@ class Core;
 
 using namespace DirectX;
 
+class Core;
+
+using namespace DirectX;
+
 class Camera : public GameObject {
 public:
 	Camera(std::string name);
@@ -14,4 +18,6 @@ public:
 	XMMATRIX Projection;
 
 	void Update() override;
+
+	void GetMatrices(XMMATRIX& View, XMMATRIX& Projection);
 };

@@ -21,4 +21,6 @@ public:
 
 	void SetCamera(std::string cameraName);
 	void Update();
+
+	Camera* GetCamera();
 };

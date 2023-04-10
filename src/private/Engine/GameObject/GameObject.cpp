@@ -6,9 +6,11 @@ GameObject::GameObject(std::string name) {
 }
 
 void GameObject::Start() {
-
+	for (Component* component : this->components)
+		component->Start();
 }
 
 void GameObject::Update() {
-
+	for (Component* component : this->components)
+		component->Update();
 }
