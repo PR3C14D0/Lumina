@@ -13,4 +13,6 @@ public:
 	XMMATRIX Projection;
 
 	void Update() override;
+
+	void GetMatrices(XMMATRIX& View, XMMATRIX& Projection);
 };

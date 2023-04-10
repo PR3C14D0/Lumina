@@ -36,7 +36,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 	ShowWindow(hwnd, nShowCmd);
 
 	g_core->SetHWND(hwnd);
-	g_core->Init();
+	g_core->Start();
 
 	MSG msg = { };
 

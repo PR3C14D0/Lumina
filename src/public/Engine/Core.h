@@ -7,6 +7,7 @@
 #include "Engine/Util.h"
 #include <map>
 #include "Engine/ScreenQuad.h"
+#include "Engine/Scene/SceneManager.h"
 
 using namespace Microsoft::WRL;
 
@@ -56,7 +57,6 @@ private:
 
 	std::vector<ComPtr<ID3D12Resource>> backBuffers;
 	std::map<GBUFFER_TYPE, ComPtr<ID3D12Resource>> GBuffers;
-	std::map<GBUFFER_TYPE, UINT> gbufferIndices;
 
 	ComPtr<ID3D12Resource> depthBuffer;
 
@@ -87,9 +87,12 @@ private:
 	ScreenQuad* screenQuad;
 
 	VSYNC vsyncState;
+
+	SceneManager* sceneMgr;
 public:
 	void SetHWND(HWND& hwnd);
 	HWND GetHWND();
+	std::map<GBUFFER_TYPE, UINT> gbufferIndices;
 
 	UINT GetNewHeapIndex(D3D12_DESCRIPTOR_HEAP_TYPE type);
 
@@ -103,9 +106,12 @@ public:
 	void GetGBuffer(GBUFFER_TYPE type, ComPtr<ID3D12Resource>& outRes);
 
 	void GetDeviceAndCommandList(ComPtr<ID3D12Device>& dev, ComPtr<ID3D12GraphicsCommandList>& list);
+	void GetCommandQueue(ComPtr<ID3D12CommandQueue>& queue);
 
-	void Init();
+	void Start();
 	void MainLoop();
+
+	SceneManager* GetSceneManager();
 
 	Core();
 	static Core* GetInstance();

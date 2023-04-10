@@ -36,3 +36,7 @@ void Scene::Update() {
 	for (std::pair<std::string, GameObject*> obj : this->gameObjects)
 		obj.second->Update();
 }
+
+Camera* Scene::GetCamera() {
+	return this->actualCamera;
+}

@@ -2,6 +2,7 @@
 #include <iostream>
 #include <map>
 #include "Engine/Scene/Scene.h"
+#include "Engine/GameObject/Component/Component.h"
 
 class Core;
 
@@ -16,10 +17,13 @@ private:
 public:
 	SceneManager();
 
+	void Start();
+
 	void AddScene(Scene* scene);
 	void SetActualScene(std::string name);
 
 	bool SceneExists(std::string name);
+	Scene* GetActualScene();
 
 	void Update();
 };

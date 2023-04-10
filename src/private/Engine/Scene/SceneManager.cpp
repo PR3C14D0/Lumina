@@ -6,6 +6,22 @@ SceneManager::SceneManager() {
 	this->hwnd = this->core->GetHWND();
 }
 
+void SceneManager::Start() {
+	GameObject* sampleObj = new GameObject("Test");
+	Scene* sampleScene = new Scene("asd");
+	Camera* sampleCamera = new Camera("Camera");
+	sampleScene->gameObjects["Camera"] = sampleCamera;
+	sampleScene->actualCamera = sampleCamera;
+	Mesh* mesh = new Mesh(&sampleObj->transform);
+	sampleScene->gameObjects["Test"] = sampleObj;
+	this->actualScene = sampleScene;
+
+	mesh->LoadFromFile("f16.fbx");
+	sampleObj->AddComponent<Mesh>(mesh);
+	mesh->Start();
+	this->AddScene(sampleScene);
+}
+
 void SceneManager::SetActualScene(std::string name) {
 	if (this->SceneExists(name)) {
 		Scene* scene = this->scenes[name];
@@ -41,4 +57,8 @@ void SceneManager::Update() {
 		MessageBox(this->hwnd, "SceneManager: No Scene specified", "Error", MB_OK);
 		return;
 	}
+}
+
+Scene* SceneManager::GetActualScene() {
+	return this->actualScene;
 }
