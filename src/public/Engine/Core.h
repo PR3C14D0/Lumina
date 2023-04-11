@@ -8,6 +8,9 @@
 #include <map>
 #include "Engine/ScreenQuad.h"
 #include "Engine/Scene/SceneManager.h"
+#include <imgui/imgui.h>
+#include <imgui/backends/imgui_impl_win32.h>
+#include <imgui/backends/imgui_impl_dx12.h>
 
 using namespace Microsoft::WRL;
 
@@ -90,6 +93,7 @@ private:
 	VSYNC vsyncState;
 
 	SceneManager* sceneMgr;
+	ImGuiIO* imIO;
 public:
 	void SetHWND(HWND& hwnd);
 	HWND GetHWND();
