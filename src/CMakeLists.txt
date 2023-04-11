@@ -15,11 +15,13 @@ set(DX_LIB "dxgi.lib;d3d12.lib;d3dcompiler.lib")
 set(ASSIMP_LIB "${LIB}/assimp/assimp-vc143-mt.lib")
 
 set(DXTK_DEBUG "${LIB}/directxtk/DirectXTK12-Debug.lib")
+set(DXTK "${LIB}/directxtk/DirectXTK12-Release.lib")
 
 # Link libraries
 target_link_libraries(Lumina "${DX_LIB}")
 target_link_libraries(Lumina "${ASSIMP_LIB}")
-target_link_libraries(Lumina "${DXTK_DEBUG}")
+target_link_libraries(Lumina debug "${DXTK_DEBUG}")
+target_link_libraries(Lumina optimized "${DXTK}")
 
 target_include_directories(Lumina PRIVATE "${SOURCE_INCLUDES}")
 target_include_directories(Lumina PUBLIC "${GLOBAL_INCLUDES}")
