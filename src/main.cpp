@@ -1,7 +1,9 @@
 #include <Windows.h>
 #include "Engine/Core.h"
+#include "Engine/Input.h"
 
 bool g_quit = false;
+Input* g_input = Input::GetInstance();
 Core* g_core = Core::GetInstance();
 
 LRESULT CALLBACK WndProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
@@ -35,6 +37,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 
 	ShowWindow(hwnd, SW_MAXIMIZE);
 
+	g_input->SetHWND(hwnd);
 	g_core->SetHWND(hwnd);
 	g_core->Start();
 
@@ -56,6 +59,8 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
 	if (ImGui_ImplWin32_WndProcHandler(hwnd, uMsg, wParam, lParam))
 		return 0;
 
+	g_input->Callback(hwnd, uMsg, wParam, lParam);
+
 	switch (uMsg) {
 	case WM_DESTROY:
 		g_quit = true;
@@ -64,4 +69,6 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
 	}
 
 	return DefWindowProc(hwnd, uMsg, wParam, lParam);
+	
+	g_input->Close();
 }
