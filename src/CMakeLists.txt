@@ -17,11 +17,22 @@ set(ASSIMP_LIB "${LIB}/assimp/assimp-vc143-mt.lib")
 set(DXTK_DEBUG "${LIB}/directxtk/DirectXTK12-Debug.lib")
 set(DXTK "${LIB}/directxtk/DirectXTK12-Release.lib")
 
+file(GLOB "IMGUI_SRC" 
+	"${GLOBAL_INCLUDES}/imgui/imgui.cpp"
+	"${GLOBAL_INCLUDES}/imgui/imgui_draw.cpp"
+	"${GLOBAL_INCLUDES}/imgui/imgui_tables.cpp"
+	"${GLOBAL_INCLUDES}/imgui/imgui_widgets.cpp"
+	"${GLOBAL_INCLUDES}/imgui/backends/imgui_impl_dx12.cpp"
+	"${GLOBAL_INCLUDES}/imgui/backends/imgui_impl_win32.cpp"
+)
+
+add_library("ImGui" STATIC "${IMGUI_SRC}")
+
 # Link libraries
 target_link_libraries(Lumina "${DX_LIB}")
 target_link_libraries(Lumina "${ASSIMP_LIB}")
-target_link_libraries(Lumina debug "${DXTK_DEBUG}")
-target_link_libraries(Lumina optimized "${DXTK}")
+target_link_libraries(Lumina "${DXTK_DEBUG}")
 
 target_include_directories(Lumina PRIVATE "${SOURCE_INCLUDES}")
 target_include_directories(Lumina PUBLIC "${GLOBAL_INCLUDES}")
+target_include_directories(ImGui PUBLIC "${GLOBAL_INCLUDES}")

@@ -130,7 +130,7 @@ void Core::Start() {
 
 	UINT nRTVIncrementSize = this->GetDescriptorIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
 	D3D12_CPU_DESCRIPTOR_HANDLE rtvCPUHandle = this->GetDescriptorCPUHandle(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
-	CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle(rtvCPUHandle, nRTVIncrementSize);
+	CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle(rtvCPUHandle, 0, nRTVIncrementSize);
 	for (int i = 0; i < this->nNumBackBuffers; i++) {
 		ComPtr<ID3D12Resource> backBuffer;
 		ThrowIfFailed(this->sc->GetBuffer(i, IID_PPV_ARGS(backBuffer.GetAddressOf())));
@@ -205,6 +205,18 @@ void Core::Start() {
 
 	this->sceneMgr->Start();
 	this->screenQuad = new ScreenQuad();
+
+	IMGUI_CHECKVERSION();
+	ImGui::CreateContext();
+
+	this->imIO = &ImGui::GetIO(); (void*)this->imIO;
+	ImGui::StyleColorsDark();
+	UINT imGuiIndex = this->GetNewHeapIndex(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+	D3D12_CPU_DESCRIPTOR_HANDLE imguiCPUHandle = CD3DX12_CPU_DESCRIPTOR_HANDLE(this->GetDescriptorCPUHandle(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV), imGuiIndex, this->nCBV_SRVHeapIncrementSize);
+	D3D12_GPU_DESCRIPTOR_HANDLE imguiGPUHandle = CD3DX12_GPU_DESCRIPTOR_HANDLE(this->GetDescriptorGPUHandle(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV), imGuiIndex, this->nCBV_SRVHeapIncrementSize);
+
+	ImGui_ImplWin32_Init(this->hwnd);
+	ImGui_ImplDX12_Init(this->dev.Get(), 1, DXGI_FORMAT_B8G8R8A8_UNORM, this->cbv_srvHeap.Get(), imguiCPUHandle, imguiGPUHandle);
 }
 
 void Core::InitDepthBuffer() {
@@ -246,7 +258,6 @@ void Core::InitDepthBuffer() {
 	dsvDesc.Format = depthDesc.Format;
 
 	this->dev->CreateDepthStencilView(this->depthBuffer.Get(), &dsvDesc, depthHandle);
-
 	return;
 }
 
@@ -416,7 +427,6 @@ void Core::MainLoop() {
 	ThrowIfFailed(this->alloc->Reset());
 	ThrowIfFailed(this->list->Reset(this->alloc.Get(), nullptr));
 
-
 	UINT nAlbedoIndex = this->gbufferIndices[ALBEDO];
 	UINT nNormalIndex = this->gbufferIndices[NORMAL];
 	UINT nPositionIndex = this->gbufferIndices[POSITION];
@@ -459,15 +469,6 @@ void Core::MainLoop() {
 	this->sceneMgr->Update();
 
 	std::vector<D3D12_RESOURCE_BARRIER> barriers;
-	D3D12_RESOURCE_BARRIER backBufferBarrier = CD3DX12_RESOURCE_BARRIER::Transition(this->backBuffers[this->nCurrentBackBuffer].Get(), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
-	barriers.push_back(backBufferBarrier);
-	this->list->ResourceBarrier(barriers.size(), barriers.data());
-
-	backBufferBarrier = CD3DX12_RESOURCE_BARRIER::Transition(this->backBuffers[this->nCurrentBackBuffer].Get(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
-	barriers.clear();
-	barriers.push_back(backBufferBarrier);
-	this->list->ResourceBarrier(barriers.size(), barriers.data());
-
 	this->screenQuad->Render(); // Render our ScreenQuad.
 
 	/* Resolve ScreenQuad */
@@ -482,11 +483,25 @@ void Core::MainLoop() {
 
 	barriers.clear();
 
-	resolveBarrier = CD3DX12_RESOURCE_BARRIER::Transition(this->backBuffers[this->nCurrentBackBuffer].Get(), D3D12_RESOURCE_STATE_RESOLVE_DEST, D3D12_RESOURCE_STATE_PRESENT);
+	resolveBarrier = CD3DX12_RESOURCE_BARRIER::Transition(this->backBuffers[this->nCurrentBackBuffer].Get(), D3D12_RESOURCE_STATE_RESOLVE_DEST, D3D12_RESOURCE_STATE_RENDER_TARGET);
 	sqBarrier = CD3DX12_RESOURCE_BARRIER::Transition(this->screenQuad->resource.Get(), D3D12_RESOURCE_STATE_RESOLVE_SOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
 	
 	barriers.push_back(resolveBarrier);
 	barriers.push_back(sqBarrier);
+	this->list->ResourceBarrier(barriers.size(), barriers.data());
+
+	D3D12_CPU_DESCRIPTOR_HANDLE backBufferHandle = CD3DX12_CPU_DESCRIPTOR_HANDLE(this->GetDescriptorCPUHandle(D3D12_DESCRIPTOR_HEAP_TYPE_RTV), this->nCurrentBackBuffer, this->nRTVHeapIncrementSize);
+	this->list->OMSetRenderTargets(1, &backBufferHandle, FALSE, nullptr);
+	/*ImGui_ImplWin32_NewFrame();
+	ImGui_ImplDX12_NewFrame();
+	ImGui::NewFrame();
+
+	ImGui::Render();
+	ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), this->list.Get());*/
+
+	D3D12_RESOURCE_BARRIER backBufferBarrier = CD3DX12_RESOURCE_BARRIER::Transition(this->backBuffers[this->nCurrentBackBuffer].Get(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
+	barriers.clear();
+	barriers.push_back(backBufferBarrier);
 	this->list->ResourceBarrier(barriers.size(), barriers.data());
 
 	ThrowIfFailed(this->list->Close()); // Close our command list

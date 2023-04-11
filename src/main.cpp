@@ -33,7 +33,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 		return TRUE;
 	}
 
-	ShowWindow(hwnd, nShowCmd);
+	ShowWindow(hwnd, SW_MAXIMIZE);
 
 	g_core->SetHWND(hwnd);
 	g_core->Start();
