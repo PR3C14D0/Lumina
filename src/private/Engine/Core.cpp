@@ -497,6 +497,9 @@ void Core::MainLoop() {
 	ImGui_ImplDX12_NewFrame();
 	ImGui::NewFrame();
 
+	ImGui::Begin("Test");
+	ImGui::End();
+
 	ImGui::Render();
 	ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), this->list.Get());
 
