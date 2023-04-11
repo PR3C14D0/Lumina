@@ -1,10 +1,11 @@
 #include "Engine/Input.h"
 #include "Engine/Core.h"
 
+/* Lumina Engine's "InputWave" input system */
+
 Input* Input::instance;
 
 Input::Input() {
-	this->core = Core::GetInstance();
 	this->deltaX = 0.f;
 	this->deltaY = 0.f;
 
@@ -43,8 +44,8 @@ void Input::ShowCursor(bool bShow) {
 		sizeX = rect.right - rect.left;
 		sizeY = rect.bottom - rect.top;
 
-		this->centerX = (float)sizeX / 2;
-		this->centerY = (float)sizeY / 2;
+		this->centerX = sizeX / 2;
+		this->centerY = sizeY / 2;
 
 		ClipCursor(&rect);
 

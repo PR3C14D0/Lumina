@@ -4,7 +4,7 @@
 #include <vector>
 #include <Windows.h>
 
-class Core;
+/* Lumina Engine's "InputWave" input system */
 
 enum INPUT_STATE {
 	PRESSED = 0,
@@ -20,15 +20,13 @@ class Input {
 private:
 	static Input* instance;
 
-	Core* core;
-
 	std::map<char, INPUT_STATE> keys;
 	std::map<MOUSE_BUTTON, INPUT_STATE> buttons;
 
 	char pressedKey;
 
 	HWND hwnd;
-	float centerX, centerY;
+	int centerX, centerY;
 
 	HCURSOR hCursor;
 public:
