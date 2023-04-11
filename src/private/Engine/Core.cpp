@@ -490,8 +490,8 @@ void Core::MainLoop() {
 	barriers.push_back(sqBarrier);
 	this->list->ResourceBarrier(barriers.size(), barriers.data());
 
-	D3D12_CPU_DESCRIPTOR_HANDLE backBufferHandle = CD3DX12_CPU_DESCRIPTOR_HANDLE(this->GetDescriptorCPUHandle(D3D12_DESCRIPTOR_HEAP_TYPE_RTV), this->nCurrentBackBuffer, this->nRTVHeapIncrementSize);
-	this->list->OMSetRenderTargets(1, &backBufferHandle, FALSE, nullptr);
+	D3D12_CPU_DESCRIPTOR_HANDLE bbHandle = CD3DX12_CPU_DESCRIPTOR_HANDLE(this->GetDescriptorCPUHandle(D3D12_DESCRIPTOR_HEAP_TYPE_RTV), this->nCurrentBackBuffer, this->nRTVHeapIncrementSize);
+	this->list->OMSetRenderTargets(1, &bbHandle, FALSE, nullptr);
 
 	ImGui_ImplWin32_NewFrame();
 	ImGui_ImplDX12_NewFrame();
