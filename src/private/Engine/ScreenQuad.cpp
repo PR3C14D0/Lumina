@@ -135,8 +135,8 @@ bool ScreenQuad::InitRootSignature() {
 
 	/* Get the indexes for our descriptors */
 	UINT albedoIndex = this->core->gbufferIndices[ALBEDO];
-	UINT positionIndex = this->core->gbufferIndices[POSITION];
 	UINT normalIndex = this->core->gbufferIndices[NORMAL];
+	UINT positionIndex = this->core->gbufferIndices[POSITION];
 
 	UINT cbv_srvHeapIncrementSize = this->core->GetDescriptorIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV); // Get our CBV / SRV / UAV descriptor heap increment size
 	D3D12_CPU_DESCRIPTOR_HANDLE cbv_srvHandle = this->core->GetDescriptorCPUHandle(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV); // Get our CBV / SRV / UAV descriptor heap handle CPU handle.
@@ -239,6 +239,7 @@ void ScreenQuad::InitPipeline() {
 	plDesc.DepthStencilState.StencilEnable = FALSE;
 	
 	ThrowIfFailed(this->dev->CreateGraphicsPipelineState(&plDesc, IID_PPV_ARGS(this->plState.GetAddressOf())));
+	this->plState->SetName(L"ScreenQuad Pipeline State");
 }
 
 /*!

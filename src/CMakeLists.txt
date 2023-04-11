@@ -33,6 +33,7 @@ target_link_libraries(Lumina "${DX_LIB}")
 target_link_libraries(Lumina "${ASSIMP_LIB}")
 target_link_libraries(Lumina debug "${DXTK_DEBUG}")
 target_link_libraries(Lumina optimized "${DXTK}")
+target_link_libraries(Lumina ImGui)
 
 target_include_directories(Lumina PRIVATE "${SOURCE_INCLUDES}")
 target_include_directories(Lumina PUBLIC "${GLOBAL_INCLUDES}")

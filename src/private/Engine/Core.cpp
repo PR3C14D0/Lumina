@@ -492,12 +492,13 @@ void Core::MainLoop() {
 
 	D3D12_CPU_DESCRIPTOR_HANDLE backBufferHandle = CD3DX12_CPU_DESCRIPTOR_HANDLE(this->GetDescriptorCPUHandle(D3D12_DESCRIPTOR_HEAP_TYPE_RTV), this->nCurrentBackBuffer, this->nRTVHeapIncrementSize);
 	this->list->OMSetRenderTargets(1, &backBufferHandle, FALSE, nullptr);
-	/*ImGui_ImplWin32_NewFrame();
+
+	ImGui_ImplWin32_NewFrame();
 	ImGui_ImplDX12_NewFrame();
 	ImGui::NewFrame();
 
 	ImGui::Render();
-	ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), this->list.Get());*/
+	ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), this->list.Get());
 
 	D3D12_RESOURCE_BARRIER backBufferBarrier = CD3DX12_RESOURCE_BARRIER::Transition(this->backBuffers[this->nCurrentBackBuffer].Get(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
 	barriers.clear();

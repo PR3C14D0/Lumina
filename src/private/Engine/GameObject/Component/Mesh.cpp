@@ -153,6 +153,7 @@ void Mesh::InitPipeline() {
 	plDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
 	
 	ThrowIfFailed(this->dev->CreateGraphicsPipelineState(&plDesc, IID_PPV_ARGS(this->plState.GetAddressOf())));
+	this->plState->SetName(L"Mesh Pipeline State");
 }
 
 /*!
