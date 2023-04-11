@@ -5,12 +5,61 @@ Input* Input::instance;
 
 Input::Input() {
 	this->core = Core::GetInstance();
+	this->deltaX = 0.f;
+	this->deltaY = 0.f;
+
+	this->hCursor = LoadCursor(NULL, IDC_ARROW);
 }
 
 Input* Input::GetInstance() {
 	if (Input::instance == nullptr)
 		Input::instance = new Input();
 	return Input::instance;
+}
+
+void Input::ShowCursor(bool bShow) {
+	if (!bShow) {
+		RECT rect;
+		GetClientRect(this->hwnd, &rect);
+
+		POINT lt;
+		POINT rb;
+
+		lt.x = rect.left;
+		lt.y = rect.top;
+
+		rb.x = rect.right;
+		rb.y = rect.bottom;
+
+		MapWindowPoints(this->hwnd, NULL, &lt, 1);
+		MapWindowPoints(this->hwnd, NULL, &rb, 1);
+
+		rect.left = lt.x;
+		rect.right = rb.x;
+		rect.top = lt.y;
+		rect.bottom = rb.y;
+
+		int sizeX, sizeY;
+		sizeX = rect.right - rect.left;
+		sizeY = rect.bottom - rect.top;
+
+		this->centerX = (float)sizeX / 2;
+		this->centerY = (float)sizeY / 2;
+
+		ClipCursor(&rect);
+
+		POINT cursorPos;
+		GetCursorPos(&cursorPos);
+		SetCursor(NULL);
+		this->deltaX = this->centerX - cursorPos.x;
+		this->deltaY = this->centerY - cursorPos.y;
+
+		SetCursorPos(this->centerX, this->centerY);
+	}
+	else {
+		SetCursor(this->hCursor);
+		ClipCursor(nullptr);
+	}
 }
 
 void Input::Callback(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
@@ -139,6 +188,9 @@ void Input::Close() {
 
 	for (MOUSE_BUTTON btn : btnsToRemove)
 		this->buttons.erase(btn);
+
+	this->deltaX = 0.f;
+	this->deltaY = 0.f;
 
 	return;
 }

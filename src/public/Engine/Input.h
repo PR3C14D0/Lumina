@@ -28,6 +28,9 @@ private:
 	char pressedKey;
 
 	HWND hwnd;
+	float centerX, centerY;
+
+	HCURSOR hCursor;
 public:
 	Input();
 	static Input* GetInstance();
@@ -51,4 +54,7 @@ public:
 	bool GetButtonUp(MOUSE_BUTTON btn);
 
 	void SetHWND(HWND& hwnd);
+
+	void ShowCursor(bool bShow);
+	float deltaX, deltaY;
 };
