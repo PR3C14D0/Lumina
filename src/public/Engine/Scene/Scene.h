@@ -3,6 +3,7 @@
 #include <Windows.h>
 #include <map>
 #include "Engine/Camera/Camera.h"
+#include "Engine/Camera/EditorCamera.h"
 
 class Core; /* Core class forward declaration */
 

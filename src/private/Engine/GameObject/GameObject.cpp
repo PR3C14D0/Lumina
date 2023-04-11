@@ -3,6 +3,7 @@
 GameObject::GameObject(std::string name) {
 	this->name = name;
 	this->transform = Transform{};
+	this->input = Input::GetInstance();
 }
 
 void GameObject::Start() {

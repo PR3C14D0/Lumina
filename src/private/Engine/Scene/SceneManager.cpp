@@ -9,8 +9,8 @@ SceneManager::SceneManager() {
 void SceneManager::Start() {
 	GameObject* sampleObj = new GameObject("Test");
 	Scene* sampleScene = new Scene("asd");
-	Camera* sampleCamera = new Camera("Camera");
-	sampleScene->gameObjects["Camera"] = sampleCamera;
+	EditorCamera* sampleCamera = new EditorCamera("Camera");
+	sampleScene->gameObjects["Editor Camera"] = sampleCamera;
 	sampleScene->actualCamera = sampleCamera;
 	Mesh* mesh = new Mesh(&sampleObj->transform);
 	sampleScene->gameObjects["Test"] = sampleObj;
