@@ -49,7 +49,6 @@ void Mesh::Update() {
 	if (this->bMeshLoaded) {
 		this->UpdateCBuffer();
 		this->Draw();
-		this->transform->rotate(0.f, 0.1f, 0.f);
 	}
 }
 
