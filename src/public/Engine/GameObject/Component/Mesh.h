@@ -1,6 +1,7 @@
 #pragma once
 #include <iostream>
 #include <vector>
+#include <map>
 #include "Engine/GameObject/Component/Component.h"
 #include "Math/Transform.h"
 #include "DirectXIncludes.h"
@@ -12,6 +13,7 @@
 #include <dxtk/ResourceUploadBatch.h>
 #include <dxtk/WICTextureLoader.h>
 #include "Engine/ConstantBuffers.h"
+#include "Engine/ResourceManager.h"
 
 class Core;
 class SceneManager;
@@ -25,18 +27,20 @@ private:
 	ComPtr<ID3D12GraphicsCommandList> list;
 	ComPtr<ID3D12CommandQueue> queue;
 	
-	ComPtr<ID3D12Resource> texture; // TODO: Allow multiple textures.
-	UINT nTextureIndex;
+	ComPtr<ID3D12Resource> texture;
 	UINT nSamplerIndex;
 
-	ComPtr<ID3D12Resource> VBO; // TODO: Allow multiple vertex buffers.
-	D3D12_VERTEX_BUFFER_VIEW VBV;
+	std::vector<ComPtr<ID3D12Resource>> VBOs;
+	std::vector<D3D12_VERTEX_BUFFER_VIEW> VBVs;
 
 	ComPtr<ID3D12RootSignature> rootSig;
 
+	std::map<UINT, std::string> textureIndices;
+	std::map<std::string, UINT> textureSrvIndices;
+
 	ComPtr<ID3D12PipelineState> plState;
 
-	std::vector<Vertex> vertices;
+	std::map<UINT, std::vector<Vertex>> vertices;
 
 	Shader* shader;
 	void InitPipeline();
@@ -61,6 +65,8 @@ private:
 	void InitCBuffer();
 	void UpdateCBuffer();
 	void PrepareTextures();
+
+	ResourceManager* resMgr;
 public:
 	Mesh(Transform* parentTransform);
 

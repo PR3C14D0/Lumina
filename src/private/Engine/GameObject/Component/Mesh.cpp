@@ -29,6 +29,7 @@ Mesh::Mesh(Transform* parentTransform) : Component::Component() {
 	this->samplerCPUHandle = this->core->GetDescriptorCPUHandle(D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER);
 	this->samplerGPUHandle = this->core->GetDescriptorGPUHandle(D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER);
 	this->nSamplerIncrementSize = this->core->GetDescriptorIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+	this->resMgr = ResourceManager::GetInstance();
 }
 
 void Mesh::Start() {
@@ -160,62 +161,91 @@ void Mesh::InitPipeline() {
 */
 void Mesh::Draw() {
 	this->list->SetGraphicsRootSignature(this->rootSig.Get());
-	this->list->IASetVertexBuffers(0, 1, &this->VBV);
 	this->list->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 	this->list->SetPipelineState(this->plState.Get());
 
 	D3D12_GPU_DESCRIPTOR_HANDLE cbuffHandle = CD3DX12_GPU_DESCRIPTOR_HANDLE(this->cbv_srvGPUHandle, this->nWVPIndex, this->nCBVHeapIncrementSize);
 	D3D12_GPU_DESCRIPTOR_HANDLE texSamplerHandle = CD3DX12_GPU_DESCRIPTOR_HANDLE(this->samplerGPUHandle, this->nSamplerIndex, this->nCBVHeapIncrementSize);
-	D3D12_GPU_DESCRIPTOR_HANDLE textureHandle = CD3DX12_GPU_DESCRIPTOR_HANDLE(this->cbv_srvGPUHandle, this->nTextureIndex, this->nCBVHeapIncrementSize);
-
 	this->list->SetGraphicsRootDescriptorTable(0, cbuffHandle);
 	this->list->SetGraphicsRootDescriptorTable(1, texSamplerHandle);
-	this->list->SetGraphicsRootDescriptorTable(2, textureHandle);
+	
+	int i = 0;
+	for (D3D12_VERTEX_BUFFER_VIEW VBV : this->VBVs) {
+		std::string texName = this->textureIndices[i];
+		UINT nTextureIndex = this->textureSrvIndices[texName];
+		this->list->IASetVertexBuffers(0, 1, &VBV);
+		D3D12_GPU_DESCRIPTOR_HANDLE textureHandle = CD3DX12_GPU_DESCRIPTOR_HANDLE(this->cbv_srvGPUHandle, nTextureIndex, this->nCBVHeapIncrementSize);
+		this->list->SetGraphicsRootDescriptorTable(2, textureHandle);
 
-	this->list->DrawInstanced(this->vertices.size(), 1, 0, 0);
+		this->list->DrawInstanced(this->vertices[i].size(), 1, 0, 0);
+		i++;
+	}
 }
 
 void Mesh::UploadBuffers() {
-	UINT nVerticesSize = this->vertices.size() * sizeof(Vertex);
+	for(std::pair<UINT, std::vector<Vertex>> vertex : this->vertices) {
+		std::vector<Vertex> vert = vertex.second;
+		UINT nVerticesSize = vert.size() * sizeof(Vertex);
+		ComPtr<ID3D12Resource> VBO;
 
-	D3D12_HEAP_PROPERTIES heapProps = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
-	D3D12_RESOURCE_DESC resDesc = CD3DX12_RESOURCE_DESC::Buffer(nVerticesSize);
+		D3D12_HEAP_PROPERTIES heapProps = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
+		D3D12_RESOURCE_DESC resDesc = CD3DX12_RESOURCE_DESC::Buffer(nVerticesSize);
 
-	ThrowIfFailed(this->dev->CreateCommittedResource(
-		&heapProps,
-		D3D12_HEAP_FLAG_NONE,
-		&resDesc,
-		D3D12_RESOURCE_STATE_GENERIC_READ,
-		nullptr,
-		IID_PPV_ARGS(this->VBO.GetAddressOf())
-	));
+		ThrowIfFailed(this->dev->CreateCommittedResource(
+			&heapProps,
+			D3D12_HEAP_FLAG_NONE,
+			&resDesc,
+			D3D12_RESOURCE_STATE_GENERIC_READ,
+			nullptr,
+			IID_PPV_ARGS(VBO.GetAddressOf())
+		));
 
-	this->VBO->SetName(L"Mesh VBO");
+		VBO->SetName(L"Mesh VBO");
 
-	PVOID ms;
-	this->VBO->Map(NULL, nullptr, &ms);
-	memcpy(ms, this->vertices.data(), nVerticesSize);
-	this->VBO->Unmap(NULL, nullptr);
+		PVOID ms;
+		VBO->Map(NULL, nullptr, &ms);
+		memcpy(ms, vert.data(), nVerticesSize);
+		VBO->Unmap(NULL, nullptr);
 
-	this->VBV.BufferLocation = this->VBO->GetGPUVirtualAddress();
-	this->VBV.SizeInBytes = nVerticesSize;
-	this->VBV.StrideInBytes = sizeof(Vertex);
+		D3D12_VERTEX_BUFFER_VIEW VBV = { };
+
+		VBV.BufferLocation = VBO->GetGPUVirtualAddress();
+		VBV.SizeInBytes = nVerticesSize;
+		VBV.StrideInBytes = sizeof(Vertex);
+
+		this->VBOs.push_back(VBO);
+		this->VBVs.push_back(VBV);
+	}
 
 	return;
 }
 
 void Mesh::PrepareTextures() {
-	this->nTextureIndex = this->core->GetNewHeapIndex(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-	D3D12_CPU_DESCRIPTOR_HANDLE textureCPUHandle = CD3DX12_CPU_DESCRIPTOR_HANDLE(this->cbv_srvCPUHandle, this->nTextureIndex, this->nCBVHeapIncrementSize);
+	std::vector<std::string> preparedTextures;
+	for (std::pair<UINT, std::string> tex : this->textureIndices) {
+		for (std::string preparedTex : preparedTextures) {
+			if (preparedTex == tex.second)
+				continue;
+		}
 
-	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = { };
-	srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
-	srvDesc.Texture2D.MipLevels = 1;
-	srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-	srvDesc.Format = this->texture->GetDesc().Format;
+		ComPtr<ID3D12Resource> texture;
+		this->resMgr->GetResource(tex.second, texture);
 
-	this->dev->CreateShaderResourceView(this->texture.Get(), &srvDesc, textureCPUHandle);
+		UINT nTextureIndex = this->core->GetNewHeapIndex(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+		D3D12_CPU_DESCRIPTOR_HANDLE textureCPUHandle = CD3DX12_CPU_DESCRIPTOR_HANDLE(this->cbv_srvCPUHandle, nTextureIndex, this->nCBVHeapIncrementSize);
 
+		D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = { };
+		srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+		srvDesc.Texture2D.MipLevels = 1;
+		srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+		srvDesc.Format = texture->GetDesc().Format;
+
+		this->dev->CreateShaderResourceView(texture.Get(), &srvDesc, textureCPUHandle);
+
+		this->textureSrvIndices[tex.second] = nTextureIndex;
+		preparedTextures.push_back(tex.second);
+	}
+	
 	D3D12_SAMPLER_DESC samplerDesc = { };
 	samplerDesc.AddressU = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
 	samplerDesc.AddressV = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
@@ -229,7 +259,6 @@ void Mesh::PrepareTextures() {
 	D3D12_CPU_DESCRIPTOR_HANDLE texSamplerHandle = CD3DX12_CPU_DESCRIPTOR_HANDLE(this->samplerCPUHandle, this->nSamplerIndex, this->nSamplerIncrementSize);
 
 	this->dev->CreateSampler(&samplerDesc, texSamplerHandle);
-	
 	return;
 }
 
@@ -270,39 +299,47 @@ void Mesh::LoadFromFile(std::string file) {
 	Assimp::Importer importer;
 	const aiScene* scene = importer.ReadFile(file, NULL);
 
-	aiMesh* mesh = scene->mMeshes[0]; // TODO: Add multi-mesh support.
-	aiMaterial* mat = scene->mMaterials[mesh->mMaterialIndex];
+	for (int i = 0; i < scene->mNumMeshes; i++) {
+		aiMesh* mesh = scene->mMeshes[i];
+		aiMaterial* mat = scene->mMaterials[mesh->mMaterialIndex];
+		std::vector<Vertex> meshVert;
 
-	for (int i = 0; i < mesh->mNumVertices; i++) {
-		aiVector3D vec = mesh->mVertices[i];
-		RGB pos = { vec.x, vec.y, vec.z };
-		RGB nml = { 0.f, 0.f, 0.f };
-		RG uv = { 0.f, 0.f };
+		for (int i = 0; i < mesh->mNumVertices; i++) {
+			aiVector3D vec = mesh->mVertices[i];
+			RGB pos = { vec.x, vec.y, vec.z };
+			RGB nml = { 0.f, 0.f, 0.f };
+			RG uv = { 0.f, 0.f };
 
-		if (mesh->HasNormals()) {
-			nml[0] = mesh->mNormals[i].x;
-			nml[1] = mesh->mNormals[i].y;
-			nml[2] = mesh->mNormals[i].z;
+			if (mesh->HasNormals()) {
+				nml[0] = mesh->mNormals[i].x;
+				nml[1] = mesh->mNormals[i].y;
+				nml[2] = mesh->mNormals[i].z;
+			}
+
+			if (mesh->HasTextureCoords(0)) {
+				uv[0] = mesh->mTextureCoords[0][i].x;
+				uv[1] = mesh->mTextureCoords[0][i].y;
+			}
+
+			Vertex vertex = { { pos[0], pos[1], pos[2] }, { nml[0], nml[1], nml[2] }, { uv[0], uv[1] } };
+			meshVert.push_back(vertex);
 		}
+		this->vertices[i] = meshVert;
 
-		if (mesh->HasTextureCoords(0)) {
-			uv[0] = mesh->mTextureCoords[0][i].x;
-			uv[1] = mesh->mTextureCoords[0][i].y;
+		/* Load our texture */
+		aiString texPath;
+		if (mat->GetTextureCount(aiTextureType_DIFFUSE) > 0 && mat->GetTexture(aiTextureType_DIFFUSE, 0, &texPath) == AI_SUCCESS) {
+			const aiTexture* tex = scene->GetEmbeddedTexture(texPath.C_Str());
+
+			if (!this->resMgr->ResourceExists(texPath.C_Str())) {
+				ResourceUploadBatch batch(this->dev.Get());
+				batch.Begin(D3D12_COMMAND_LIST_TYPE_DIRECT);
+				ThrowIfFailed(CreateWICTextureFromMemory(this->dev.Get(), batch, (BYTE*)tex->pcData, tex->mWidth, this->texture.GetAddressOf()));
+				batch.End(this->queue.Get());
+				this->resMgr->AddResource(this->texture, texPath.C_Str());
+			}
+			this->textureIndices[i] = texPath.C_Str();
 		}
-
-		Vertex vertex = { { pos[0], pos[1], pos[2] }, { nml[0], nml[1], nml[2] }, { uv[0], uv[1] } };
-		this->vertices.push_back(vertex);
-	}
-
-	/* Load our texture */
-	aiString texPath;
-	if (mat->GetTextureCount(aiTextureType_DIFFUSE) > 0 && mat->GetTexture(aiTextureType_DIFFUSE, 0, &texPath) == AI_SUCCESS) {
-		const aiTexture* tex = scene->GetEmbeddedTexture(texPath.C_Str());
-
-		ResourceUploadBatch batch(this->dev.Get());
-		batch.Begin(D3D12_COMMAND_LIST_TYPE_DIRECT);
-		ThrowIfFailed(CreateWICTextureFromMemory(this->dev.Get(), batch, (BYTE*)tex->pcData, tex->mWidth, this->texture.GetAddressOf()));
-		batch.End(this->queue.Get());
 	}
 
 	this->bMeshLoaded = true;
