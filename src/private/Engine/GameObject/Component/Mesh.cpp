@@ -217,9 +217,9 @@ void Mesh::PrepareTextures() {
 	this->dev->CreateShaderResourceView(this->texture.Get(), &srvDesc, textureCPUHandle);
 
 	D3D12_SAMPLER_DESC samplerDesc = { };
-	samplerDesc.AddressU = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
-	samplerDesc.AddressV = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
-	samplerDesc.AddressW = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
+	samplerDesc.AddressU = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+	samplerDesc.AddressV = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+	samplerDesc.AddressW = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
 	samplerDesc.ComparisonFunc = D3D12_COMPARISON_FUNC_NONE;
 	samplerDesc.Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR;
 	samplerDesc.MaxLOD = D3D12_FLOAT32_MAX;

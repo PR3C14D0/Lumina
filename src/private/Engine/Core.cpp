@@ -64,7 +64,7 @@ void Core::Start() {
 	}
 
 	RECT rect;
-	GetWindowRect(this->hwnd, &rect);
+	GetClientRect(this->hwnd, &rect);
 
 	this->width = rect.right - rect.left;
 	this->height = rect.bottom - rect.top;
@@ -185,6 +185,7 @@ void Core::Start() {
 	}
 
 	this->sceneMgr = new SceneManager();
+	this->editor = Editor::GetInstance();
 	this->InitDepthBuffer();
 	
 	this->nCurrentFence = 0;
@@ -494,11 +495,14 @@ void Core::MainLoop() {
 	this->list->OMSetRenderTargets(1, &bbHandle, FALSE, nullptr);
 
 	ImGui_ImplWin32_NewFrame();
+	ImGuiViewport* imVp = ImGui::GetMainViewport();
+	imVp->Size.x = this->width;
+	imVp->Size.y = this->height;
+
 	ImGui_ImplDX12_NewFrame();
 	ImGui::NewFrame();
 
-	ImGui::Begin("Test");
-	ImGui::End();
+	this->editor->Update();
 
 	ImGui::Render();
 	ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), this->list.Get());

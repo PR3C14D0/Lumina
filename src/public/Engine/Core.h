@@ -11,6 +11,7 @@
 #include <imgui/imgui.h>
 #include <imgui/backends/imgui_impl_win32.h>
 #include <imgui/backends/imgui_impl_dx12.h>
+#include "Engine/Editor/Editor.h"
 
 using namespace Microsoft::WRL;
 
@@ -36,12 +37,12 @@ private:
 	ComPtr<IDXGIFactory2> factory;
 	ComPtr<IDXGIAdapter> adapter;
 	ComPtr<IDXGISwapChain3> sc;
-
+	
 	ComPtr<ID3D12Device> dev;
 	ComPtr<ID3D12CommandAllocator> alloc;
 	ComPtr<ID3D12CommandQueue> queue;
 	ComPtr<ID3D12GraphicsCommandList> list;
-	
+
 	UINT nNumBackBuffers;
 	UINT nNumRenderTargets;
 	UINT nNumFBO;
@@ -94,6 +95,7 @@ private:
 
 	SceneManager* sceneMgr;
 	ImGuiIO* imIO;
+	Editor* editor;
 public:
 	void SetHWND(HWND& hwnd);
 	HWND GetHWND();
