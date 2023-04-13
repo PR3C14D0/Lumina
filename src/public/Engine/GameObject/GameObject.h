@@ -5,12 +5,14 @@
 #include "DirectXIncludes.h"
 #include "Engine/GameObject/Component/Mesh.h"
 #include "Engine/Input.h"
+#include "Engine/Time.h"
 
 class GameObject {
 private:
 	std::vector<Component*> components;
 protected:
 	Input* input;
+	Time* time;
 public:
 	std::string name;
 	GameObject(std::string name);

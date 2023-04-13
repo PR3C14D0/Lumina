@@ -3,6 +3,7 @@
 #include <map>
 #include "Engine/Scene/Scene.h"
 #include "Engine/GameObject/Component/Component.h"
+#include "Engine/Time.h"
 
 class Core;
 
@@ -12,6 +13,9 @@ private:
 	Scene* actualScene;
 	
 	Core* core;
+
+	Time* time;
+	GameObject* sampleObj;
 
 	HWND hwnd;
 public:

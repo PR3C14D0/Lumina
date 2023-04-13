@@ -15,23 +15,25 @@ void EditorCamera::Update() {
 		this->input->ShowCursor(false);
 		float deltaX = this->input->deltaX;
 		float deltaY = this->input->deltaY;
+		float sensX = 0.1f;
+		float sensY = 0.1f;
 
-		this->transform.rotate(deltaY, deltaX, 0.f);
+		this->transform.rotate(deltaY * sensY, deltaX * sensX, 0.f);
 
 		if (this->input->GetKeyDown('w')) {
-			Vector3 translation = this->transform.Forward() * 0.1f;
+			Vector3 translation = this->transform.Forward() * 1.f * time->deltaTime;
 			this->transform.translate(translation);
 		}
 		if (this->input->GetKeyDown('s')) {
-			Vector3 translation = this->transform.Forward() * -0.1f;
+			Vector3 translation = this->transform.Forward() * -1.f * time->deltaTime;
 			this->transform.translate(translation);
 		}
 		if (this->input->GetKeyDown('d')) {
-			Vector3 translation = this->transform.Right() * 0.1f;
+			Vector3 translation = this->transform.Right() * 1.f * time->deltaTime;
 			this->transform.translate(translation);
 		}
 		if (this->input->GetKeyDown('a')) {
-			Vector3 translation = this->transform.Right() * -0.1f;
+			Vector3 translation = this->transform.Right() * -1.f * time->deltaTime;
 			this->transform.translate(translation);
 		}
 	}

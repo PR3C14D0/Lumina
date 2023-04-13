@@ -4,18 +4,18 @@
 SceneManager::SceneManager() {
 	this->core = Core::GetInstance();
 	this->hwnd = this->core->GetHWND();
+	this->time = Time::GetInstance();
 }
 
 void SceneManager::Start() {
-	GameObject* sampleObj = new GameObject("Test");
+	this->sampleObj = new GameObject("Test");
 	Scene* sampleScene = new Scene("asd");
 	EditorCamera* sampleCamera = new EditorCamera("Camera");
 	sampleScene->gameObjects["Editor Camera"] = sampleCamera;
 	sampleScene->actualCamera = sampleCamera;
 	Mesh* mesh = new Mesh(&sampleObj->transform);
-	sampleScene->gameObjects["Test"] = sampleObj;
+	sampleScene->gameObjects["Test"] = this->sampleObj;
 	this->actualScene = sampleScene;
-	sampleObj->transform.translate(0.f, 0.f, 2.f);
 
 	mesh->LoadFromFile("f16.fbx");
 	sampleObj->AddComponent<Mesh>(mesh);
@@ -52,6 +52,8 @@ void SceneManager::AddScene(Scene* scene) {
 }
 
 void SceneManager::Update() {
+	this->sampleObj->transform.rotate(0.f, 5.f * time->deltaTime, 0.f);
+	
 	if (actualScene)
 		this->actualScene->Update();
 	else {

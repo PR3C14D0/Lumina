@@ -1,10 +1,13 @@
 #include <Windows.h>
 #include "Engine/Core.h"
 #include "Engine/Input.h"
+#include "Engine/Time.h"
+#include <time.h>
 
 bool g_quit = false;
 Input* g_input = Input::GetInstance();
 Core* g_core = Core::GetInstance();
+Time* g_time = Time::GetInstance();
 
 LRESULT CALLBACK WndProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
 
@@ -41,6 +44,10 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 	g_core->SetHWND(hwnd);
 	g_core->Start();
 
+	clock_t startTime = clock();
+	float deltaTime;
+	clock_t endTime;
+
 	MSG msg = { };
 
 	while (!g_quit) {
@@ -49,6 +56,10 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 			DispatchMessage(&msg);
 		}
 		g_core->MainLoop();
+		endTime = clock();
+		deltaTime = endTime - startTime;
+		g_time->SetDelta(deltaTime / 1000.f);
+		startTime = endTime;
 	}
 	return FALSE;
 }
