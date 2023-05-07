@@ -22,7 +22,7 @@ VertexOutput VertexMain(float4 position : POSITION, float4 normal : NORMAL, floa
     output.position = mul(position, World);
     output.position = mul(output.position, View);
     output.position = mul(output.position, Projection);
-    output.normal = mul(World, normal);
+    output.normal = normalize(mul(normal, World));
     output.uv = uv;
     output.vertexPos = mul(position, World);
     return output;

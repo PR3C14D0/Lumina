@@ -14,6 +14,8 @@
 #include <dxtk/WICTextureLoader.h>
 #include "Engine/ConstantBuffers.h"
 #include "Engine/ResourceManager.h"
+#include <execution>
+#include <algorithm>
 
 class Core;
 class SceneManager;

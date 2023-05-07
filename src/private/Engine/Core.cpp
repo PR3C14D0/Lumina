@@ -218,6 +218,7 @@ void Core::Start() {
 
 	ImGui_ImplWin32_Init(this->hwnd);
 	ImGui_ImplDX12_Init(this->dev.Get(), 1, DXGI_FORMAT_B8G8R8A8_UNORM, this->cbv_srvHeap.Get(), imguiCPUHandle, imguiGPUHandle);
+	this->editor->Start();
 }
 
 void Core::InitDepthBuffer() {

@@ -5,6 +5,7 @@ Scene::Scene(std::string name) {
 	this->name = name;
 	this->core = Core::GetInstance();
 	this->hwnd = this->core->GetHWND();
+	this->editorCamera = new EditorCamera("Editor Camera");
 }
 
 /*!
@@ -28,6 +29,14 @@ void Scene::SetCamera(std::string cameraName) {
 }
 
 /*!
+	This method sets our actual camera as editor camera.
+*/
+void Scene::UseEditorCamera() {
+	this->actualCamera = this->editorCamera;
+	return;
+}
+
+/*!
 	Our Scene main loop.
 		Note: This method will be called once per frame.
 */
@@ -35,6 +44,15 @@ void Scene::Update() {
 	/* Update our objects */
 	for (std::pair<std::string, GameObject*> obj : this->gameObjects)
 		obj.second->Update();
+
+	this->editorCamera->Update();
+}
+
+/*!
+	This method will return our scene GameObjects.
+*/
+void Scene::GetObjects(std::map<std::string, GameObject*>& objs) {
+	objs = this->gameObjects;
 }
 
 Camera* Scene::GetCamera() {

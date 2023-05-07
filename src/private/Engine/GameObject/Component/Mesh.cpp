@@ -298,6 +298,7 @@ void Mesh::LoadFromFile(std::string file) {
 
 	Assimp::Importer importer;
 	const aiScene* scene = importer.ReadFile(file, NULL);
+	std::vector<aiMesh*> meshes(scene->mMeshes, scene->mMeshes + scene->mNumMeshes);
 
 	for (int i = 0; i < scene->mNumMeshes; i++) {
 		aiMesh* mesh = scene->mMeshes[i];

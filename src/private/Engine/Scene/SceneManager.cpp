@@ -10,14 +10,12 @@ SceneManager::SceneManager() {
 void SceneManager::Start() {
 	this->sampleObj = new GameObject("Test");
 	Scene* sampleScene = new Scene("asd");
-	EditorCamera* sampleCamera = new EditorCamera("Camera");
-	sampleScene->gameObjects["Editor Camera"] = sampleCamera;
-	sampleScene->actualCamera = sampleCamera;
+	sampleScene->UseEditorCamera();
 	Mesh* mesh = new Mesh(&sampleObj->transform);
 	sampleScene->gameObjects["Test"] = this->sampleObj;
 	this->actualScene = sampleScene;
 
-	mesh->LoadFromFile("f16.fbx");
+	mesh->LoadFromFile("SWAT.fbx");
 	sampleObj->AddComponent<Mesh>(mesh);
 	mesh->Start();
 	this->AddScene(sampleScene);
@@ -52,7 +50,6 @@ void SceneManager::AddScene(Scene* scene) {
 }
 
 void SceneManager::Update() {
-	this->sampleObj->transform.rotate(0.f, 5.f * time->deltaTime, 0.f);
 	
 	if (actualScene)
 		this->actualScene->Update();

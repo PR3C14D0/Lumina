@@ -1,13 +1,18 @@
 #include "Engine/Editor/Editor.h"
+#include "Engine/Core.h"
 
 Editor* Editor::instance;
 
 Editor::Editor() {
 	this->time = Time::GetInstance();
 	this->bEditOpen = false;
+	this->workingObj = nullptr;
 }
 
 void Editor::Start() {
+	this->core = Core::GetInstance();
+	this->sceneMgr = this->core->GetSceneManager();
+
 	ImGuiStyle* style = &ImGui::GetStyle();
 	ImVec4* colors = style->Colors;
 
@@ -49,8 +54,6 @@ void Editor::Start() {
 	colors[ImGuiCol_TabActive] = ImVec4(0.42f, 0.42f, 0.42f, 0.67f);
 	colors[ImGuiCol_TabUnfocused] = ImVec4(0.22f, 0.22f, 0.22f, 0.54f);
 	colors[ImGuiCol_TabUnfocusedActive] = ImVec4(0.22f, 0.22f, 0.22f, 0.54f);
-	/*colors[ImGuiCol_DockingPreview] = ImVec4(0.51f, 0.51f, 0.51f, 0.70f);
-	colors[ImGuiCol_DockingEmptyBg] = ImVec4(0.16f, 0.16f, 0.16f, 0.94f);*/
 	colors[ImGuiCol_PlotLines] = ImVec4(0.61f, 0.61f, 0.61f, 1.00f);
 	colors[ImGuiCol_PlotLinesHovered] = ImVec4(1.00f, 0.43f, 0.35f, 1.00f);
 	colors[ImGuiCol_PlotHistogram] = ImVec4(0.90f, 0.70f, 0.00f, 1.00f);
@@ -70,9 +73,13 @@ void Editor::Start() {
 }
 
 void Editor::Update() {
+	this->sceneMgr->GetActualScene()->GetObjects(this->objs);
+
 	this->MenuBar();
 	this->Edit();
 	this->Performance();
+	this->Hierarchy();
+	this->Properties();
 }
 
 void Editor::MenuBar() {
@@ -96,6 +103,34 @@ void Editor::Edit() {
 void Editor::Performance() {
 	ImGui::Begin("Performance");
 	ImGui::Text(("FPS: " + std::to_string((int)(1.f / this->time->deltaTime))).c_str());
+	ImGui::End();
+}
+
+void Editor::Properties() {
+	
+	if (this->workingObj) {
+		ImGui::Begin("Properties");
+		ImGui::Text(("Name: " + this->workingObj->name).c_str());
+		/*ImGui::SeparatorText("Location");
+		ImGui::InputFloat("X", &this->workingObj->transform.location.x, 0.1f, 0.5f);
+		ImGui::InputFloat("Y", &this->workingObj->transform.location.y, 0.1f, 0.5f);
+		ImGui::InputFloat("Z", &this->workingObj->transform.location.z, 0.1f, 0.5f);*/
+		ImGui::SeparatorText("Rotation");
+		ImGui::InputFloat("X", &this->workingObj->transform.rotation.x, 0.1f, 0.5f);
+		ImGui::InputFloat("Y", &this->workingObj->transform.rotation.y, 0.1f, 0.5f);
+		ImGui::InputFloat("Z", &this->workingObj->transform.rotation.z, 0.1f, 0.5f);
+		ImGui::End();
+	}
+
+}
+
+void Editor::Hierarchy() {
+	ImGui::Begin("Hierarchy");
+	for (std::pair<std::string, GameObject*> obj : this->objs) {
+		if (ImGui::Button(obj.first.c_str())) {
+			this->workingObj = obj.second;
+		}
+	}
 	ImGui::End();
 }
 
