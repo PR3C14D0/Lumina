@@ -10,6 +10,15 @@ void EditorCamera::Start() {
 
 void EditorCamera::Update() {
 	Camera::Update();
+
+	if (this->transform.rotation.x >= 89.f) {
+		this->transform.rotation.x = 89.f;
+	}
+
+	if (this->transform.rotation.x <= -89.f) {
+		this->transform.rotation.x = -89.f;
+	}
+
 	std::cout << "[X] " << this->input->deltaX << " [Y] " << this->input->deltaY << std::endl;
 	if (this->input->GetButtonDown(RIGHT)) {
 		this->input->ShowCursor(false);
